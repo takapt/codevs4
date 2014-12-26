@@ -10,7 +10,7 @@ Unit input_unit()
 
     return unit;
 }
-InputResult input_result()
+InputResult input()
 {
     InputResult result;
 
@@ -43,4 +43,12 @@ InputResult input_result()
     assert(end == "END");
 
     return result;
+}
+
+void output(const map<int, char>& order)
+{
+    cout << order.size() << endl;
+    for (auto& it : order)
+        cout << it.first << " " << it.second << endl;
+    cout.flush();
 }

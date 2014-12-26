@@ -1,4 +1,8 @@
-#include "Header.hpp"
+#ifndef INCLUDED_IO
+#define INCLUDED_IO
+
+
+#include "Common.hpp"
 #include "Unit.hpp"
 
 
@@ -13,4 +17,7 @@ struct InputResult
     vector<Pos> resource_pos_in_sight;
 };
 
-InputResult input_result();
+InputResult input();
+void output(const map<int, char>& order);
+
+#endif
