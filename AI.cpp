@@ -123,9 +123,8 @@ vector<int> hungarian(vector<vector<int>> a)
             for (int k = 0; k <= q; ++k) fx[s[k]] -= d;
         } else ++i;
     }
-    int ret = 0;
-    for (int i = 0; i < n; ++i) ret += a[i][x[i]];
-    dump(ret);
+//     int ret = 0;
+//     for (int i = 0; i < n; ++i) ret += a[i][x[i]];
 //     return ret;
 
     return x;
@@ -237,15 +236,11 @@ map<int, char> AI::solve(const InputResult& input)
             target_pos[worker_i] = target;
     }
 
-//     rep(i, clusters.size())
-//         dump(clusters[i]);
-
     map<int, char> order;
     rep(worker_i, my_workers.size())
     {
         const Pos& cur = my_workers[worker_i].pos;
         const Pos& to = target_pos[worker_i];
-//         cerr << cur.dist(to) << " " << cur << " -> " << to << endl;
         if (cur != to)
         {
             Dir dir;
@@ -258,7 +253,6 @@ map<int, char> AI::solve(const InputResult& input)
             order[my_workers[worker_i].id] = STR_DIR[dir][0];
         }
     }
-    cerr << endl;
 
     if (my_workers.size() < 20 && input.resources >= 40)
         order[my_castle.id] = '0';
