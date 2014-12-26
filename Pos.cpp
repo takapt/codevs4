@@ -93,7 +93,7 @@ Dir Pos::dir(const Pos& to) const
 ostream& std::operator<<(ostream& os, const Pos& pos)
 {
     char buf[256];
-    sprintf(buf, "(%3d, %3d)", pos.x, pos.y);
+    sprintf(buf, "(%2d, %2d)", pos.x, pos.y);
     os << buf;
     return os;
 }
