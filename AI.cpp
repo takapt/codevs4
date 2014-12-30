@@ -216,7 +216,7 @@ AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({10, 70, 100})
+    group_sizes({10, 10, 60, 60})
 {
     enemy_castle.id = -1;
 
