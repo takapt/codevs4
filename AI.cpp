@@ -216,12 +216,14 @@ AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({10, 10, 60, 60})
+    group_sizes({10, 10, 40})
 {
     enemy_castle.id = -1;
 
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
         enemy_castle_pos_cand.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40;
+
+    next_attack_turn = -1919;
 }
 
 map<int, char> AI::solve(const InputResult& input)
@@ -361,9 +363,27 @@ map<int, char> AI::solve(const InputResult& input)
 
         if (enemy_castle.id != -1)
         {
+            int around_enemies = 0;
+            for (auto& enemy_warrior : enemy_warriors)
+                if (enemy_warrior.pos.dist(enemy_castle.pos) <= 2)
+                    ++around_enemies;
+            if (around_enemies >= 30)
+                next_attack_turn = input.current_turn + 30;
+
+            const bool back = input.current_turn < next_attack_turn;
             for (auto& warrior : my_warriors)
             {
-                if (warrior.pos.dist(enemy_castle.pos) > warrior.attack_range())
+                const int d = warrior.pos.dist(enemy_castle.pos);
+                if (back && d <= 10)
+                {
+                    int best_dir = -1;
+                    rep(dir, 4)
+                        if (enemy_castle.pos.dist(warrior.pos + NEXT_POS[dir]) > d)
+                            best_dir = dir;
+                    assert(best_dir != -1);
+                    order[warrior.id] = STR_DIR[best_dir][0];
+                }
+                else if ((!back && d > warrior.attack_range()) || (back && d > 10 + 1))
                     order[warrior.id] = STR_DIR[decide_dir(warrior.pos, enemy_castle.pos)][0];
             }
         }

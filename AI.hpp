@@ -27,6 +27,8 @@ private:
 //     map<int, map<int, Unit>> unit_log;
 
     vector<int> group_sizes;
+
+    int next_attack_turn;
 };
 
 #endif
