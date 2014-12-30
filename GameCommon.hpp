@@ -4,6 +4,7 @@
 #include "Common.hpp"
 
 const int BOARD_SIZE = 100;
+const int MAX_RESOURCE_GAIN = 5;
 
 
 enum Dir

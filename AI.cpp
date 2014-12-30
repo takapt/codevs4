@@ -6,8 +6,50 @@
 #include "Board.hpp"
 #include "IO.hpp"
 
+#include "Random.hpp"
+
+
+
+vector<int> hungarian(vector<vector<int>> a)
+{
+    const int inf = 114514;
+    int n = a.size(), p, q;
+    rep(i, n) rep(j, n)
+        a[i][j] *= -1;
+
+    vector<int> fx(n, inf), fy(n, 0);
+    vector<int> x(n, -1), y(n, -1);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            fx[i] = max(fx[i], a[i][j]);
+    for (int i = 0; i < n; ) {
+        vector<int> t(n, -1), s(n+1, i);
+        for (p = q = 0; p <= q && x[i] < 0; ++p)
+            for (int k = s[p], j = 0; j < n && x[i] < 0; ++j)
+                if (fx[k] + fy[j] == a[k][j] && t[j] < 0) {
+                    s[++q] = y[j], t[j] = k;
+                    if (s[q] < 0)
+                        for (p = j; p >= 0; j = p)
+                            y[j] = k = t[j], p = x[k], x[k] = j;
+                }
+        if (x[i] < 0) {
+            int d = inf;
+            for (int k = 0; k <= q; ++k)
+                for (int j = 0; j < n; ++j)
+                    if (t[j] < 0) d = min(d, fx[s[k]] + fy[j] - a[s[k]][j]);
+            for (int j = 0; j < n; ++j) fy[j] += (t[j] < 0 ? 0 : d);
+            for (int k = 0; k <= q; ++k) fx[s[k]] -= d;
+        } else ++i;
+    }
+//     int ret = 0;
+//     for (int i = 0; i < n; ++i) ret += a[i][x[i]];
+//     return ret;
+
+    return x;
+}
 vector<vector<Pos>> clustering(const vector<Pos>& pos, const int num_cluster)
 {
+    assert(num_cluster > 0);
     assert(pos.size() >= num_cluster);
 
     vector<vector<Pos>> clusters(num_cluster);
@@ -92,55 +134,102 @@ vector<Pos> list_near_pos(const Board<bool>& start, const Board<bool>& mark, con
     return near_pos;
 }
 
-vector<int> hungarian(vector<vector<int>> a)
+
+Dir decide_dir(const Pos& cur, const Pos& to)
 {
-    const int inf = 114514;
-    int n = a.size(), p, q;
-    rep(i, n) rep(j, n)
-        a[i][j] *= -1;
+    assert(cur != to);
 
-    vector<int> fx(n, inf), fy(n, 0);
-    vector<int> x(n, -1), y(n, -1);
-    for (int i = 0; i < n; ++i)
-        for (int j = 0; j < n; ++j)
-            fx[i] = max(fx[i], a[i][j]);
-    for (int i = 0; i < n; ) {
-        vector<int> t(n, -1), s(n+1, i);
-        for (p = q = 0; p <= q && x[i] < 0; ++p)
-            for (int k = s[p], j = 0; j < n && x[i] < 0; ++j)
-                if (fx[k] + fy[j] == a[k][j] && t[j] < 0) {
-                    s[++q] = y[j], t[j] = k;
-                    if (s[q] < 0)
-                        for (p = j; p >= 0; j = p)
-                            y[j] = k = t[j], p = x[k], x[k] = j;
-                }
-        if (x[i] < 0) {
-            int d = inf;
-            for (int k = 0; k <= q; ++k)
-                for (int j = 0; j < n; ++j)
-                    if (t[j] < 0) d = min(d, fx[s[k]] + fy[j] - a[s[k]][j]);
-            for (int j = 0; j < n; ++j) fy[j] += (t[j] < 0 ? 0 : d);
-            for (int k = 0; k <= q; ++k) fx[s[k]] -= d;
-        } else ++i;
-    }
-//     int ret = 0;
-//     for (int i = 0; i < n; ++i) ret += a[i][x[i]];
-//     return ret;
-
-    return x;
+    Dir dir;
+    if (abs(to.x - cur.x) > abs(to.y - cur.y))
+        dir = to.x < cur.x ? LEFT : RIGHT;
+    else
+        dir = to.y < cur.y ? UP : DOWN;
+    return dir;
 }
 
+map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& start, const Board<bool>& mark, const int max_dist, const Pos remain_target = Pos(114, 514))
+{
+    const vector<Pos> near_mark_pos = list_near_pos(start, mark, max_dist);
+
+    vector<vector<Pos>> clusters;
+    const Pos dummy_pos(1919, 810);
+    if (near_mark_pos.size() >= units.size())
+        clusters = clustering(near_mark_pos, units.size());
+    else
+    {
+        for (auto& p : near_mark_pos)
+            clusters.push_back({p});
+
+        // dummy cluster
+        while (clusters.size() < units.size())
+            clusters.push_back({dummy_pos}); 
+    }
+
+    vector<vector<int>> cost(units.size(), vector<int>(units.size()));
+    vector<vector<Pos>> nearest_pos(units.size(), vector<Pos>(units.size()));
+    rep(unit_i, units.size())
+    {
+        const Pos& pos = units[unit_i].pos;
+        rep(cluster_i, clusters.size())
+        {
+            const int inf = 114514;
+            int nearest_dist = inf;
+            Pos nearest;
+            random_shuffle(all(clusters[cluster_i]));
+            for (auto& p : clusters[cluster_i])
+            {
+                int d = pos.dist(p);
+                if (d < nearest_dist)
+                {
+                    nearest_dist = d;
+                    nearest = p;
+                }
+            }
+            cost[unit_i][cluster_i] = nearest_dist;
+            nearest_pos[unit_i][cluster_i] = nearest;
+        }
+    }
+    const vector<int> matching = hungarian(cost);
+
+    vector<Pos> target_pos(units.size());
+    rep(unit_i, units.size())
+    {
+        const auto& target = nearest_pos[unit_i][matching[unit_i]];
+        if (target == dummy_pos)
+            target_pos[unit_i] = units[unit_i].pos;
+        else
+            target_pos[unit_i] = target;
+    }
+
+    map<int, char> order;
+    rep(unit_i, units.size())
+    {
+        const Pos& cur = units[unit_i].pos;
+        const Pos& to = target_pos[unit_i];
+        if (cur != to)
+            order[units[unit_i].id] = STR_DIR[decide_dir(cur, to)][0];
+    }
+    return order;
+}
 
 AI::AI()
-: known(false)
+:
+    known(false),
+    visited(false),
+    enemy_castle_attack_range(false)
 {
+    enemy_castle.id = -1;
+
+    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+        enemy_castle_pos_cand.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40;
 }
 
 map<int, char> AI::solve(const InputResult& input)
 {
     Unit my_castle;
-    vector<Unit> my_workers, my_warriors, my_villages;
+    vector<Unit> my_workers, my_warriors, my_villages, my_bases;
     vector<Unit> my_units = input.my_units;
+    int remain_resources = input.resources;
     for (auto& unit : my_units)
     {
         if (unit.type == WORKER)
@@ -149,6 +238,8 @@ map<int, char> AI::solve(const InputResult& input)
             my_castle = unit;
         else if (unit.type == VILLAGE)
             my_villages.push_back(unit);
+        else if (unit.type == BASE)
+            my_bases.push_back(unit);
         else
             my_warriors.push_back(unit);
 
@@ -159,103 +250,246 @@ map<int, char> AI::solve(const InputResult& input)
                 known.at(p) = true;
         }
     }
+    for (auto& pos : input.resource_pos_in_sight)
+        resource_pos.push_back(pos);
+    uniq(resource_pos);
 
-//     while (my_workers.size() > 2)
-//         my_workers.pop_back();
-
-    Board<bool> start(false);
-    Board<bool> unknown(false);
-    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+    vector<Unit> enemy_warriors;
+    for (auto& unit : input.enemy_units)
     {
-        if (abs(x) + abs(y) > 150)
-            continue;
-
-        unknown.at(x, y) = !known.at(x, y);
-
-        if (unknown.at(x, y))
-        {
-            bool known_border = false;
-            for (auto& diff : NEXT_POS)
-            {
-                Pos p = Pos(x, y) + diff;
-                if (p.in_board() && known.at(p))
-                    known_border = true;
-            }
-            start.at(x, y) = known_border;
-        }
+        if (unit.type == CASTLE)
+            enemy_castle = unit;
+        else if (unit.type == KNIGHT || unit.type == FIGHTER || unit.type == ASSASSIN)
+            enemy_warriors.push_back(unit);
     }
+    log_enemy_warriors.insert(log_enemy_warriors.end(), all(enemy_warriors));
+    uniq(log_enemy_warriors);
+    while (log_enemy_warriors.size() > 20)
+        log_enemy_warriors.erase(log_enemy_warriors.begin());
 
-    vector<Pos> near_unknown_pos = list_near_pos(start, known, 10);
-    vector<vector<Pos>> clusters;
-    const Pos dummy_pos(1919, 810);
-    if (near_unknown_pos.size() >= my_workers.size())
-        clusters = clustering(near_unknown_pos, my_workers.size());
-    else
-    {
-        for (auto& p : near_unknown_pos)
-            clusters.push_back({p});
-        // dummy cluster
-        while (clusters.size() < my_workers.size())
-            clusters.push_back({dummy_pos}); 
-    }
 
-    vector<vector<int>> cost(my_workers.size(), vector<int>(my_workers.size()));
-    vector<vector<Pos>> nearest_pos(my_workers.size(), vector<Pos>(my_workers.size()));
-    rep(worker_i, my_workers.size())
-    {
-        const Pos& pos = my_workers[worker_i].pos;
-        rep(cluster_i, clusters.size())
-        {
-            const int inf = 114514;
-            int nearest_dist = inf;
-            Pos nearest;
-            for (auto& p : clusters[cluster_i])
-            {
-                int d = pos.dist(p);
-                if (d < nearest_dist)
-                {
-                    nearest_dist = d;
-                    nearest = p;
-                }
-            }
-            cost[worker_i][cluster_i] = nearest_dist;
-            nearest_pos[worker_i][cluster_i] = nearest;
-        }
-    }
-    vector<int> matching = hungarian(cost);
-//     dump(matching);
-//     print2d(cost, my_workers.size(), my_workers.size());
-
-    vector<Pos> target_pos(my_workers.size());
-    rep(worker_i, my_workers.size())
-    {
-        const auto& target = nearest_pos[worker_i][matching[worker_i]];
-        if (target == dummy_pos)
-            target_pos[worker_i] = my_workers[worker_i].pos;
-        else
-            target_pos[worker_i] = target;
-    }
 
     map<int, char> order;
-    rep(worker_i, my_workers.size())
-    {
-        const Pos& cur = my_workers[worker_i].pos;
-        const Pos& to = target_pos[worker_i];
-        if (cur != to)
-        {
-            Dir dir;
-            if (abs(to.x - cur.x) > abs(to.y - cur.y))
-//             if (to.y == cur.y || (to.x != cur.x && rand() % 2))
-                dir = to.x < cur.x ? LEFT : RIGHT;
-            else
-                dir = to.y < cur.y ? UP : DOWN;
 
-            order[my_workers[worker_i].id] = STR_DIR[dir][0];
+    {
+        if (my_bases.size() < 2)
+        {
+            bool build = false;
+            if (remain_resources >= 500)
+            {
+                int max_dist = -1;
+                Unit best_worker;
+                for (auto& worker : my_workers)
+                {
+                    int d = worker.pos.dist(Pos(0, 0));
+                    if (d > max_dist)
+                    {
+                        max_dist = d;
+                        best_worker = worker;
+                    }
+                }
+                if (max_dist != -1 && min(best_worker.pos.x, best_worker.pos.y) >= 99)
+                {
+                    remain_resources -= 500;
+                    order[best_worker.id] = '6';
+                    my_workers.erase(find(all(my_workers), best_worker));
+                    build = true;
+                }
+            }
+
+            if (my_workers.size() && !build)
+            {
+//                 order[u.id] = (u.pos.x > u.pos.y && u.pos.x < 99 || u.pos.y >= 99) ? 'R' : 'D';
+                sort(all(my_workers));
+                order[my_workers[0].id] = (my_workers[0].pos.x < 99 ? 'R' : 'D');
+                if (my_workers.size() > 1)
+                    order[my_workers[1].id] = (my_workers[1].pos.y < 99 ? 'D' : 'R');
+                my_workers.erase(my_workers.begin(), my_workers.begin() + min<int>(2, my_workers.size()));
+            }
         }
     }
 
-    if (my_workers.size() < 20 && input.resources >= 40)
+//     if (my_warriors.size() < 50)
+    {
+        for (auto& base : my_bases)
+        {
+//             if (remain_resources >= 20)
+//             {
+//                 remain_resources -= 20;
+//                 order[base.id] = '1';
+//             }
+
+            if (remain_resources >= 20)
+            {
+                static Random ran;
+
+                const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
+                vector<double> ratio = { 5, 1, 3 };
+                for (auto& warrior : log_enemy_warriors)
+                    ++ratio[(warrior.type - KNIGHT + 1) % 3];
+
+                const int costs[] = { 20, 40, 60 };
+                int t = ran.select(ratio);
+                char type = "123"[t];
+
+                if (type == '3' && remain_resources < 80)
+                    type = '1';
+                else if (type == '2' && remain_resources < 60)
+                    type = '1';
+
+                order[base.id] = type;
+                if (type == '1')
+                    remain_resources -= 20;
+                else if (type == '2')
+                    remain_resources -= 40;
+                else
+                    remain_resources -= 60;
+            }
+        }
+    }
+
+    {
+        map<Pos, vector<Unit>> on_base_warriors;
+        for (Unit& warrior : my_warriors)
+        {
+            for (Unit& base : my_bases)
+                if (warrior.pos == base.pos)
+                    on_base_warriors[base.pos].push_back(warrior);
+        }
+        for (auto& it : on_base_warriors)
+        {
+            uniq(it.second);
+            if (it.second.size() < 65)
+            {
+                for (Unit& warrior : it.second)
+                    my_warriors.erase(find(all(my_warriors), warrior));
+            }
+        }
+
+        if (enemy_castle.id != -1)
+        {
+            for (auto& warrior : my_warriors)
+            {
+//                 if (warrior.pos != enemy_castle.pos)
+                if (warrior.pos.dist(enemy_castle.pos) > warrior.attack_range())
+                    order[warrior.id] = STR_DIR[decide_dir(warrior.pos, enemy_castle.pos)][0];
+            }
+        }
+        else
+        {
+            if (!my_warriors.empty())
+            {
+
+                Board<bool> start(false);
+                Board<bool> mark(false);
+                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                {
+                    if (abs(x - 99) + abs(y - 99) <= 40)
+                    {
+                        mark.at(x, y) = !known.at(x, y);
+                        start.at(x, y) = !known.at(x, y);
+                    }
+                }
+
+                auto order_to_search_castle = search_moves(my_warriors, start, mark, 200, Pos(99, 99));
+                for (auto& it : order_to_search_castle)
+                    assert(!order.count(it.first));
+                order.insert(all(order_to_search_castle));
+            }
+        }
+    }
+
+    vector<Unit> free_workers;
+    {
+        vector<Pos> rsrc_pos;
+        rep(resource_i, resource_pos.size())
+        {
+            int fixed = 0;
+            for (auto& worker : my_workers)
+                if (fixed_worker_ids.count(worker.id) && worker.pos == resource_pos[resource_i])
+                    ++fixed;
+
+            for (auto& worker : my_workers)
+            {
+                if (fixed == MAX_RESOURCE_GAIN)
+                    break;
+
+                if (!fixed_worker_ids.count(worker.id) && worker.pos == resource_pos[resource_i])
+                {
+                    ++fixed;
+                    fixed_worker_ids.insert(worker.id);
+                }
+            }
+
+            const int need = MAX_RESOURCE_GAIN - fixed;
+            rep(_, need)
+                rsrc_pos.push_back(resource_pos[resource_i]);
+        }
+
+        vector<Unit> remain_workers;
+        for (auto& worker : my_workers)
+            if (!fixed_worker_ids.count(worker.id))
+                remain_workers.push_back(worker);
+
+        const int n = max(rsrc_pos.size(), remain_workers.size());
+        const int inf = 114514;
+        vector<vector<int>> cost(n, vector<int>(n, inf));
+        rep(worker_i, n) rep(rsrc_i, rsrc_pos.size())
+        {
+            if (worker_i >= remain_workers.size() || rsrc_i >= rsrc_pos.size())
+                cost[worker_i][rsrc_i] = inf;
+            else
+                cost[worker_i][rsrc_i] = remain_workers[worker_i].pos.dist(rsrc_pos[rsrc_i]);
+        }
+        auto matching = hungarian(cost);
+
+        map<int, char> order_to_resource;
+        rep(worker_i, remain_workers.size())
+        {
+            const Unit& worker = remain_workers[worker_i];
+            const int rsrc_i = matching[worker_i];
+            if (rsrc_i < rsrc_pos.size())
+            {
+                order_to_resource[worker.id] = STR_DIR[decide_dir(worker.pos, rsrc_pos[rsrc_i])][0];
+                my_workers.erase(find(all(my_workers), worker));
+            }
+            else
+                free_workers.push_back(worker);
+        }
+        order.insert(all(order_to_resource));
+    }
+
+    if (!free_workers.empty())
+    {
+        Board<bool> start(false);
+        Board<bool> unknown(false);
+        rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+        {
+            unknown.at(x, y) = !known.at(x, y);
+
+            if (unknown.at(x, y))
+            {
+                bool known_border = false;
+                for (auto& diff : NEXT_POS)
+                {
+                    Pos p = Pos(x, y) + diff;
+                    if (p.in_board() && known.at(p))
+                        known_border = true;
+                }
+                start.at(x, y) = known_border;
+            }
+        }
+        auto order_to_search_resource = search_moves(free_workers, start, unknown, 100);
+        for (auto& it : order_to_search_resource)
+            assert(!order.count(it.first));
+        order.insert(all(order_to_search_resource));
+    }
+
+
+    if (my_bases.empty() && my_workers.size() < 25 && remain_resources >= 40)
+    {
         order[my_castle.id] = '0';
+    }
 
     return order;
 }

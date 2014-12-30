@@ -35,6 +35,17 @@ const int ATTACK_RANGE[] = {
     2,
 };
 
+// (attacker, defencer)
+const int DAMAGE_TABLE[7][7] = {
+    {100, 100, 100, 100, 100, 100, 100},
+    {100, 500, 200, 200, 200, 200, 200},
+    {500, 1600, 500, 200, 200, 200, 200},
+    {1000, 500, 1000, 500, 200, 200, 200},
+    {100, 100, 100, 100, 100, 100, 100},
+    {100, 100, 100, 100, 100, 100, 100},
+    {100, 100, 100, 100, 100, 100, 100},
+};
+
 struct Unit
 {
     UnitType type;
@@ -44,6 +55,18 @@ struct Unit
 
     int sight_range() const { return SIGHT_RANGE[type]; }
     int attack_range() const { return ATTACK_RANGE[type]; }
+
+    bool operator<(const Unit& other) const
+    {
+        return id < other.id;
+    }
+    bool operator==(const Unit& other) const
+    {
+        return id == other.id;
+    }
 };
+
+map<int, int> simulate_damage(const vector<Unit>& a, const vector<Unit>& b);
+
 
 #endif
