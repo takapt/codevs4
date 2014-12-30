@@ -19,15 +19,14 @@ private:
 
     Unit enemy_castle;
 
-    vector<Unit> log_enemy_warriors;
-
     set<int> once_behind;
 
     Board<bool> visited;
     Board<bool> enemy_castle_pos_cand;
-    Board<bool> enemy_castle_attack_range;
 
-    map<int, map<int, Unit>> unit_log;
+//     map<int, map<int, Unit>> unit_log;
+
+    vector<int> group_sizes;
 };
 
 #endif

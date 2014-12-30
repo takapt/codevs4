@@ -216,7 +216,7 @@ AI::AI()
 :
     known(false),
     visited(false),
-    enemy_castle_attack_range(false)
+    group_sizes({10, 70, 100})
 {
     enemy_castle.id = -1;
 
@@ -262,11 +262,6 @@ map<int, char> AI::solve(const InputResult& input)
         else if (unit.type == KNIGHT || unit.type == FIGHTER || unit.type == ASSASSIN)
             enemy_warriors.push_back(unit);
     }
-    log_enemy_warriors.insert(log_enemy_warriors.end(), all(enemy_warriors));
-    uniq(log_enemy_warriors);
-    while (log_enemy_warriors.size() > 20)
-        log_enemy_warriors.erase(log_enemy_warriors.begin());
-
 
 
     map<int, char> order;
@@ -299,7 +294,6 @@ map<int, char> AI::solve(const InputResult& input)
 
             if (my_workers.size() && !build)
             {
-//                 order[u.id] = (u.pos.x > u.pos.y && u.pos.x < 99 || u.pos.y >= 99) ? 'R' : 'D';
                 sort(all(my_workers));
                 order[my_workers[0].id] = (my_workers[0].pos.x < 99 ? 'R' : 'D');
                 if (my_workers.size() > 1)
@@ -309,26 +303,19 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
 
-//     if (my_warriors.size() < 50)
     {
         for (auto& base : my_bases)
         {
-//             if (remain_resources >= 20)
-//             {
-//                 remain_resources -= 20;
-//                 order[base.id] = '1';
-//             }
-
             if (remain_resources >= 20)
             {
-                static Random ran;
 
                 const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
                 vector<double> ratio = { 5, 1, 3 };
-                for (auto& warrior : log_enemy_warriors)
-                    ++ratio[(warrior.type - KNIGHT + 1) % 3];
+//                 for (auto& warrior : log_enemy_warriors)
+//                     ++ratio[(warrior.type - KNIGHT + 1) % 3];
 
                 const int costs[] = { 20, 40, 60 };
+                static Random ran;
                 int t = ran.select(ratio);
                 char type = "123"[t];
 
@@ -358,11 +345,17 @@ map<int, char> AI::solve(const InputResult& input)
         }
         for (auto& it : on_base_warriors)
         {
-            uniq(it.second);
-            if (it.second.size() < 65)
+            auto& warriors = it.second;
+            uniq(warriors);
+            if (warriors.size() < group_sizes[0])
             {
                 for (Unit& warrior : it.second)
                     my_warriors.erase(find(all(my_warriors), warrior));
+            }
+            else
+            {
+                if (group_sizes.size() > 1)
+                    group_sizes.erase(group_sizes.begin());
             }
         }
 
@@ -370,7 +363,6 @@ map<int, char> AI::solve(const InputResult& input)
         {
             for (auto& warrior : my_warriors)
             {
-//                 if (warrior.pos != enemy_castle.pos)
                 if (warrior.pos.dist(enemy_castle.pos) > warrior.attack_range())
                     order[warrior.id] = STR_DIR[decide_dir(warrior.pos, enemy_castle.pos)][0];
             }
@@ -379,7 +371,6 @@ map<int, char> AI::solve(const InputResult& input)
         {
             if (!my_warriors.empty())
             {
-
                 Board<bool> start(false);
                 Board<bool> mark(false);
                 rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
