@@ -216,7 +216,7 @@ AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({10, 10, 40})
+    group_sizes({20, 60})
 {
     enemy_castle.id = -1;
 
@@ -253,7 +253,8 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
     for (auto& pos : input.resource_pos_in_sight)
-        resource_pos.push_back(pos);
+        if (Pos(0, 0).dist(pos) <= 100)
+            resource_pos.push_back(pos);
     uniq(resource_pos);
 
     vector<Unit> enemy_warriors;
@@ -476,18 +477,21 @@ map<int, char> AI::solve(const InputResult& input)
         Board<bool> unknown(false);
         rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
         {
-            unknown.at(x, y) = !known.at(x, y);
-
-            if (unknown.at(x, y))
+            if (x + y <= 100)
             {
-                bool known_border = false;
-                for (auto& diff : NEXT_POS)
+                unknown.at(x, y) = !known.at(x, y);
+
+                if (unknown.at(x, y))
                 {
-                    Pos p = Pos(x, y) + diff;
-                    if (p.in_board() && known.at(p))
-                        known_border = true;
+                    bool known_border = false;
+                    for (auto& diff : NEXT_POS)
+                    {
+                        Pos p = Pos(x, y) + diff;
+                        if (p.in_board() && known.at(p))
+                            known_border = true;
+                    }
+                    start.at(x, y) = known_border;
                 }
-                start.at(x, y) = known_border;
             }
         }
         auto order_to_search_resource = search_moves(free_workers, start, unknown, 100);
@@ -497,7 +501,8 @@ map<int, char> AI::solve(const InputResult& input)
     }
 
 
-    if (my_bases.empty() && my_workers.size() < 25 && remain_resources >= 40)
+    // ori 35
+    if (my_bases.empty() && my_workers.size() < 30 && remain_resources >= 40)
     {
         order[my_castle.id] = '0';
     }
