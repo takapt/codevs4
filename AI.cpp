@@ -216,7 +216,7 @@ AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({20, 60})
+    group_sizes({10, 10, 60, 1})
 {
     enemy_castle.id = -1;
 
@@ -314,8 +314,6 @@ map<int, char> AI::solve(const InputResult& input)
 
                 const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
                 vector<double> ratio = { 5, 1, 3 };
-//                 for (auto& warrior : log_enemy_warriors)
-//                     ++ratio[(warrior.type - KNIGHT + 1) % 3];
 
                 const int costs[] = { 20, 40, 60 };
                 static Random ran;
@@ -501,8 +499,7 @@ map<int, char> AI::solve(const InputResult& input)
     }
 
 
-    // ori 35
-    if (my_bases.empty() && my_workers.size() < 30 && remain_resources >= 40)
+    if (my_bases.empty() && my_workers.size() < 40 && remain_resources >= 40)
     {
         order[my_castle.id] = '0';
     }
