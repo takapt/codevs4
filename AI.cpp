@@ -334,7 +334,7 @@ Board<int> AI::cost_table(const vector<Unit>& enemy_units) const
     Board<int> sum_damage(0);
     for (auto& unit : enemy_units)
     {
-        for (auto& diff : RANGE_POS[4])
+        for (auto& diff : RANGE_POS[2])
         {
             Pos p = unit.pos + diff;
             if (p.in_board())
@@ -345,8 +345,8 @@ Board<int> AI::cost_table(const vector<Unit>& enemy_units) const
     Board<int> cost(0);
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
     {
-        if (sum_damage.at(x, y) >= 400)
-            cost.at(x, y) = 5000;
+        if (sum_damage.at(x, y) >= 500)
+            cost.at(x, y) = 500;
     }
     return cost;
 }
@@ -356,9 +356,9 @@ Board<int> AI::down_pass_cost_table(const vector<Unit>& enemy_units) const
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
     {
         if (x > y)
-            cost.at(x, y) = 100;
+            cost.at(x, y) += 100;
         else
-            cost.at(x, y) = max(50, 100 - (y - x));
+            cost.at(x, y) += max(50, 100 - (y - x));
     }
     return cost;
 }
@@ -368,9 +368,9 @@ Board<int> AI::right_pass_cost_table(const vector<Unit>& enemy_units) const
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
     {
         if (x < y)
-            cost.at(x, y) = 100;
+            cost.at(x, y) += 100;
         else
-            cost.at(x, y) = max(50, 100 - (x - y));
+            cost.at(x, y) += max(50, 100 - (x - y));
     }
     return cost;
 }
@@ -523,13 +523,13 @@ map<int, char> AI::solve(const InputResult& input)
 
                 vector<int> move_cost(4);
                 move_cost[DOWN] = move_cost[RIGHT] = 10;
-                move_cost[LEFT] = move_cost[UP] = 50;
+                move_cost[LEFT] = move_cost[UP] = 30;
                 rep(i, down_scouters.size())
                 {
                     const Unit& u = down_scouters[i];
 
-//                     const Pos goal = Pos(99 - 40, 99) + Pos(40 / NUM_SCOUTERS * i, -40 / NUM_SCOUTERS * i);
-                    const Pos goal(90, 99);
+                    const Pos goal = Pos(99 - 40, 99) + Pos(40 / NUM_SCOUTERS * i, -40 / NUM_SCOUTERS * i);
+//                     const Pos goal(90, 99);
 
                     if (u.pos == goal)
                         once_goal.insert(u.id);
@@ -546,8 +546,8 @@ map<int, char> AI::solve(const InputResult& input)
                 rep(i, right_scouters.size())
                 {
                     const Unit& u = right_scouters[i];
-//                     const Pos goal = Pos(99, 99 - 40) + Pos(-40 / NUM_SCOUTERS * i, 40 / NUM_SCOUTERS * i);
-                    const Pos goal(99, 90);
+                    const Pos goal = Pos(99, 99 - 40) + Pos(-40 / NUM_SCOUTERS * i, 40 / NUM_SCOUTERS * i);
+//                     const Pos goal(99, 90);
 
                     if (u.pos == goal)
                         once_goal.insert(u.id);
