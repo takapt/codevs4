@@ -212,11 +212,111 @@ map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& start,
     return order;
 }
 
+const int DIJKSTRA_INF = 1919810;
+struct DijkstraResult
+{
+    Pos start;
+    Board<int> cost;
+    Board<Dir> prev_dir;
+
+    Dir find_dir(const Pos& goal) const
+    {
+        assert(prev_dir.at(goal) != INVALID);
+
+        for (Pos p = goal; ; )
+        {
+            assert(prev_dir.at(p) != INVALID);
+
+            Pos prev = p + NEXT_POS[prev_dir.at(p)];
+            if (p == start)
+                return rev_dir(prev_dir.at(p));
+
+            p = prev;
+        }
+        abort();
+    }
+};
+DijkstraResult dijkstra(const Pos& start, const Board<int>& cost, const vector<int>& move_cost)
+{
+    Board<int> dp(DIJKSTRA_INF);
+    Board<Dir> prev_dir(INVALID);
+    typedef pair<int, Pos> P;
+    priority_queue<P, vector<P>, greater<P>> q;
+    dp.at(start) = 0;
+    q.push(P(0, start));
+    while (!q.empty())
+    {
+        int c;
+        Pos cur;
+        tie(c, cur) = q.top();
+        q.pop();
+        if (c > dp.at(cur))
+            continue;
+
+        rep(dir, 4)
+        {
+            Pos next = cur + NEXT_POS[dir];
+            if (next.in_board())
+            {
+                int nc = c + cost.at(next) + move_cost[dir];
+                if (nc < dp.at(next))
+                {
+                    dp.at(next) = nc;
+                    prev_dir.at(next) = (Dir)rev_dir(dir);
+                    q.push(P(nc, next));
+                }
+            }
+        }
+    }
+
+    DijkstraResult res;
+    res.start = start;
+    res.cost = dp;
+    res.prev_dir = prev_dir;
+    return res;
+}
+vector<pair<Unit, Pos>> match_unit_goal(const vector<Unit>& units, const vector<Pos>& goals)
+{
+    vector<pair<Unit, Pos>> unit_goal;
+    const int inf = 1919810;
+    const int n = max(units.size(), goals.size());
+    vector<vector<int>> cost_to_assign(n, vector<int>(n, inf));
+    rep(i, units.size()) rep(j, goals.size())
+        cost_to_assign[i][j] = units[i].pos.dist(goals[j]);
+
+    vector<int> matching = hungarian(cost_to_assign);
+    rep(i, units.size())
+    {
+        int j = matching[i];
+        if (j < goals.size())
+            unit_goal.push_back(make_pair(units[i], goals[j]));
+    }
+    return unit_goal;
+}
+map<int, char> search_moves_by_dijkstra(const vector<pair<Unit, Pos>>& unit_goal, Board<int> cost)
+{
+    vector<int> move_cost(4);
+    move_cost[DOWN] = move_cost[RIGHT] = 5;
+    move_cost[LEFT] = move_cost[UP] = 500;
+
+    map<int, char> order;
+    for (auto& it : unit_goal)
+    {
+        Unit unit;
+        Pos goal;
+        tie(unit, goal) = it;
+
+        DijkstraResult res = dijkstra(unit.pos, cost, move_cost);
+        order[unit.id] = res.find_dir(goal);
+    }
+    return order;
+}
+
 AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({10, 10, 60, 1})
+    group_sizes({10, 60, 1})
 {
     enemy_castle.id = -1;
 
@@ -224,6 +324,53 @@ AI::AI()
         enemy_castle_pos_cand.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40;
 
     next_attack_turn = -1919;
+}
+
+Board<int> AI::cost_table(const vector<Unit>& enemy_units) const
+{
+    Board<int> sum_damage(0);
+    for (auto& unit : enemy_units)
+    {
+        for (auto& diff : RANGE_POS[unit.attack_range()])
+        {
+            Pos p = unit.pos + diff;
+            if (p.in_board())
+                sum_damage.at(p) += unit.type == WORKER ? 100 : 200;
+        }
+    }
+
+    const int NORMAL_ATTACK_RANGE = 2;
+    Board<int> cost(0);
+    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+    {
+        if (sum_damage.at(x, y) >= 500)
+            cost.at(x, y) = 1000;
+    }
+    return cost;
+}
+Board<int> AI::down_pass_cost_table(const vector<Unit>& enemy_units) const
+{
+    auto cost = cost_table(enemy_units);
+    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+    {
+        if (x > y)
+            cost.at(x, y) = 114514;
+        else
+            cost.at(x, y) = 100 - (y - x);
+    }
+    return cost;
+}
+Board<int> AI::right_pass_cost_table(const vector<Unit>& enemy_units) const
+{
+    auto cost = cost_table(enemy_units);
+    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+    {
+        if (x < y)
+            cost.at(x, y) = 114514;
+        else
+            cost.at(x, y) = 100 - (x - y);
+    }
+    return cost;
 }
 
 map<int, char> AI::solve(const InputResult& input)
@@ -252,6 +399,8 @@ map<int, char> AI::solve(const InputResult& input)
                 known.at(p) = true;
         }
     }
+    const int num_workers = my_workers.size();
+
     for (auto& pos : input.resource_pos_in_sight)
         if (Pos(0, 0).dist(pos) <= 100)
             resource_pos.push_back(pos);
@@ -286,7 +435,7 @@ map<int, char> AI::solve(const InputResult& input)
                         best_worker = worker;
                     }
                 }
-                if (max_dist != -1 && min(best_worker.pos.x, best_worker.pos.y) >= 99)
+                if (max_dist != -1 && min(best_worker.pos.x, best_worker.pos.y) >= 80)
                 {
                     remain_resources -= 500;
                     order[best_worker.id] = '6';
@@ -499,7 +648,7 @@ map<int, char> AI::solve(const InputResult& input)
     }
 
 
-    if (my_bases.empty() && my_workers.size() < 40 && remain_resources >= 40)
+    if (my_bases.empty() && num_workers < 45 && remain_resources >= 40)
     {
         order[my_castle.id] = '0';
     }

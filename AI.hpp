@@ -29,6 +29,10 @@ private:
     vector<int> group_sizes;
 
     int next_attack_turn;
+
+    Board<int> cost_table(const vector<Unit>& enemy_units) const;
+    Board<int> down_pass_cost_table(const vector<Unit>& enemy_units) const;
+    Board<int> right_pass_cost_table(const vector<Unit>& enemy_units) const;
 };
 
 #endif

@@ -13,7 +13,16 @@ enum Dir
     UP,
     LEFT,
     DOWN,
+
+    INVALID,
 };
+int rev_dir(int dir);
+Dir rev_dir(Dir dir);
+
+const char RIGHT_ORDER = 'R';
+const char UP_ORDER = 'U';
+const char LEFT_ORDER = 'L';
+const char DOWN_ORDER = 'D';
 
 const string STR_DIR[] = {
     "RIGHT",
