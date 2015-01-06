@@ -49,7 +49,9 @@ vector<int> hungarian(vector<vector<int>> a)
 }
 vector<vector<Pos>> clustering(const vector<Pos>& pos, const int num_cluster)
 {
-    assert(num_cluster > 0);
+    if (num_cluster == 0)
+        return {};
+
     assert(pos.size() >= num_cluster);
 
     vector<vector<Pos>> clusters(num_cluster);
@@ -147,9 +149,13 @@ Dir decide_dir(const Pos& cur, const Pos& to)
     return dir;
 }
 
-map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& start, const Board<bool>& mark, const int max_dist, const Pos remain_target = Pos(114, 514))
+map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& mark, const int max_dist = 200, const Pos remain_target = Pos(99, 99))
 {
-    const vector<Pos> near_mark_pos = list_near_pos(start, mark, max_dist);
+//     const vector<Pos> near_mark_pos = list_near_pos(start, mark, max_dist);
+    vector<Pos> near_mark_pos;
+    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+        if (mark.at(x, y))
+            near_mark_pos.push_back(Pos(x, y));
 
     vector<vector<Pos>> clusters;
     const Pos dummy_pos(1919, 810);
@@ -191,28 +197,25 @@ map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& start,
     }
     const vector<int> matching = hungarian(cost);
 
-    vector<Pos> target_pos(units.size());
-    rep(unit_i, units.size())
-    {
-        const auto& target = nearest_pos[unit_i][matching[unit_i]];
-        if (target == dummy_pos)
-            target_pos[unit_i] = units[unit_i].pos;
-        else
-            target_pos[unit_i] = target;
-    }
-
+//     vector<Pos> target_pos(units.size());
     map<int, char> order;
     rep(unit_i, units.size())
     {
-        const Pos& cur = units[unit_i].pos;
-        const Pos& to = target_pos[unit_i];
-        if (cur != to)
-            order[units[unit_i].id] = STR_DIR[decide_dir(cur, to)][0];
+        const auto& target = nearest_pos[unit_i][matching[unit_i]];
+//         if (target == dummy_pos)
+//             target_pos[unit_i] = units[unit_i].pos;
+//         else
+//             target_pos[unit_i] = target;
+        if (target != dummy_pos)
+        {
+            order[units[unit_i].id] = to_order(decide_dir(units[unit_i].pos, target));
+        }
     }
     return order;
 }
 
-const int DIJKSTRA_INF = 1919810;
+
+const int DIJKSTRA_INF = ten(8);
 struct DijkstraResult
 {
     Pos start;
@@ -228,7 +231,7 @@ struct DijkstraResult
             assert(prev_dir.at(p) != INVALID);
 
             Pos prev = p + NEXT_POS[prev_dir.at(p)];
-            if (p == start)
+            if (prev == start)
                 return rev_dir(prev_dir.at(p));
 
             p = prev;
@@ -331,20 +334,19 @@ Board<int> AI::cost_table(const vector<Unit>& enemy_units) const
     Board<int> sum_damage(0);
     for (auto& unit : enemy_units)
     {
-        for (auto& diff : RANGE_POS[unit.attack_range()])
+        for (auto& diff : RANGE_POS[4])
         {
             Pos p = unit.pos + diff;
             if (p.in_board())
-                sum_damage.at(p) += unit.type == WORKER ? 100 : 200;
+                sum_damage.at(p) += unit.type == WORKER ? 100 : 400;
         }
     }
 
-    const int NORMAL_ATTACK_RANGE = 2;
     Board<int> cost(0);
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
     {
-        if (sum_damage.at(x, y) >= 500)
-            cost.at(x, y) = 1000;
+        if (sum_damage.at(x, y) >= 400)
+            cost.at(x, y) = 5000;
     }
     return cost;
 }
@@ -354,9 +356,9 @@ Board<int> AI::down_pass_cost_table(const vector<Unit>& enemy_units) const
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
     {
         if (x > y)
-            cost.at(x, y) = 114514;
+            cost.at(x, y) = 100;
         else
-            cost.at(x, y) = 100 - (y - x);
+            cost.at(x, y) = max(50, 100 - (y - x));
     }
     return cost;
 }
@@ -366,32 +368,115 @@ Board<int> AI::right_pass_cost_table(const vector<Unit>& enemy_units) const
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
     {
         if (x < y)
-            cost.at(x, y) = 114514;
+            cost.at(x, y) = 100;
         else
-            cost.at(x, y) = 100 - (x - y);
+            cost.at(x, y) = max(50, 100 - (x - y));
     }
     return cost;
 }
 
+void merge_remove(map<int, char>& order, const map<int, char>& add_order, vector<Unit>& units)
+{
+    for (auto& o : add_order)
+    {
+        int id;
+        char ord;
+        tie(id, ord) = o;
+
+        assert(!order.count(id));
+        order[id] = ord;
+
+        Unit u;
+        u.id = id;
+        auto it = find(all(units), u);
+        assert(it != units.end());
+        units.erase(it);
+    }
+}
+
+vector<Unit> extract(vector<Unit>& units, const vector<int>& id)
+{
+    vector<Unit> e;
+    for (auto& unit : units)
+    {
+        if (find(all(id), unit.id) != id.end())
+            e.push_back(unit);
+    }
+    for (auto& unit : e)
+    {
+        assert(find(all(units), unit) != units.end());
+        units.erase(find(all(units), unit));
+    }
+    return e;
+}
+void remove(vector<Unit>& units, const vector<Unit>& removed)
+{
+    for (auto& rem : removed)
+    {
+        auto it = find(all(units), rem);
+        if (it != units.end())
+            units.erase(it);
+    }
+}
+
+void AI::move_for_resource(map<int, char>& order, vector<Unit>& remain_workers)
+{
+    map<Pos, vector<Unit>> pos_to_units;
+    for (auto& u : remain_workers)
+        pos_to_units[u.pos].push_back(u);
+
+    vector<Pos> rsrc_pos;
+    for (auto& pos : resource_pos)
+    {
+        auto units = pos_to_units[pos];
+        while (units.size() > MAX_RESOURCE_GAIN)
+            units.pop_back();
+
+        const int need = MAX_RESOURCE_GAIN - (int)units.size();
+        if (need > 0)
+        {
+            rep(_, need)
+                rsrc_pos.push_back(pos);
+        }
+
+        for (auto& u : units)
+            remain_workers.erase(find(all(remain_workers), u));
+    }
+
+    const int n = max(rsrc_pos.size(), remain_workers.size());
+    const int inf = 114514;
+    vector<vector<int>> cost(n, vector<int>(n, inf));
+    rep(worker_i, n) rep(rsrc_i, rsrc_pos.size())
+    {
+        if (worker_i >= remain_workers.size() || rsrc_i >= rsrc_pos.size())
+            cost[worker_i][rsrc_i] = inf;
+        else
+            cost[worker_i][rsrc_i] = remain_workers[worker_i].pos.dist(rsrc_pos[rsrc_i]);
+    }
+    auto matching = hungarian(cost);
+
+    map<int, char> order_to_resource;
+    rep(worker_i, remain_workers.size())
+    {
+        const Unit& worker = remain_workers[worker_i];
+        const int rsrc_i = matching[worker_i];
+        if (rsrc_i < rsrc_pos.size())
+        {
+            order_to_resource[worker.id] = to_order(decide_dir(worker.pos, rsrc_pos[rsrc_i]));
+        }
+    }
+
+    merge_remove(order, order_to_resource, remain_workers);
+}
+
 map<int, char> AI::solve(const InputResult& input)
 {
-    Unit my_castle;
-    vector<Unit> my_workers, my_warriors, my_villages, my_bases;
-    vector<Unit> my_units = input.my_units;
-    int remain_resources = input.resources;
-    for (auto& unit : my_units)
-    {
-        if (unit.type == WORKER)
-            my_workers.push_back(unit);
-        else if (unit.type == CASTLE)
-            my_castle = unit;
-        else if (unit.type == VILLAGE)
-            my_villages.push_back(unit);
-        else if (unit.type == BASE)
-            my_bases.push_back(unit);
-        else
-            my_warriors.push_back(unit);
+    const vector<Unit> enemy_units = input.enemy_units;
+    const Unit my_castle = input.get_my({CASTLE})[0];
+    const vector<Unit> my_workers = input.get_my({WORKER});
 
+    for (auto& unit : input.my_units)
+    {
         for (auto& diff : RANGE_POS[unit.sight_range()])
         {
             Pos p = unit.pos + diff;
@@ -399,260 +484,99 @@ map<int, char> AI::solve(const InputResult& input)
                 known.at(p) = true;
         }
     }
-    const int num_workers = my_workers.size();
 
-    for (auto& pos : input.resource_pos_in_sight)
-        if (Pos(0, 0).dist(pos) <= 100)
-            resource_pos.push_back(pos);
+    resource_pos.insert(resource_pos.end(), all(input.resource_pos_in_sight));
     uniq(resource_pos);
 
-    vector<Unit> enemy_warriors;
-    for (auto& unit : input.enemy_units)
-    {
-        if (unit.type == CASTLE)
-            enemy_castle = unit;
-        else if (unit.type == KNIGHT || unit.type == FIGHTER || unit.type == ASSASSIN)
-            enemy_warriors.push_back(unit);
-    }
-
+    int remain_resources = input.resources;
 
     map<int, char> order;
 
+    if (my_workers.size() < 45)
     {
-        if (my_bases.size() < 2)
+        if (remain_resources >= WORKER_COST)
         {
-            bool build = false;
-            if (remain_resources >= 500)
+            order[my_castle.id] = WORKER_ORDER;
+            remain_resources -= WORKER_COST;
+        }
+    }
+
+    {
+        auto remain_workers = input.get_my({WORKER});
+
+        {
+            vector<Unit> workers_in_enemy_area;
             {
-                int max_dist = -1;
-                Unit best_worker;
-                for (auto& worker : my_workers)
+                const int NUM_SCOUTERS = 6;
+                auto down_scouters = extract(remain_workers, down_scouter_ids);
+                while (down_scouter_ids.size() < NUM_SCOUTERS / 2 && !remain_workers.empty())
                 {
-                    int d = worker.pos.dist(Pos(0, 0));
-                    if (d > max_dist)
+                    down_scouter_ids.push_back(remain_workers.back().id);
+                    remain_workers.pop_back();
+                }
+                auto right_scouters = extract(remain_workers, right_scouter_ids);
+                while (right_scouter_ids.size() < NUM_SCOUTERS / 2 && !remain_workers.empty())
+                {
+                    right_scouter_ids.push_back(remain_workers.back().id);
+                    remain_workers.pop_back();
+                }
+
+                vector<int> move_cost(4);
+                move_cost[DOWN] = move_cost[RIGHT] = 10;
+                move_cost[LEFT] = move_cost[UP] = 50;
+                rep(i, down_scouters.size())
+                {
+                    const Unit& u = down_scouters[i];
+
+//                     const Pos goal = Pos(99 - 40, 99) + Pos(40 / NUM_SCOUTERS * i, -40 / NUM_SCOUTERS * i);
+                    const Pos goal(90, 99);
+
+                    if (u.pos == goal)
+                        once_goal.insert(u.id);
+
+                    if (!once_goal.count(u.id))
                     {
-                        max_dist = d;
-                        best_worker = worker;
+                        DijkstraResult res = dijkstra(u.pos, down_pass_cost_table(enemy_units), move_cost);
+                        order[u.id] = to_order(res.find_dir(goal));
                     }
+                    else
+                        workers_in_enemy_area.push_back(u);
                 }
-                if (max_dist != -1 && min(best_worker.pos.x, best_worker.pos.y) >= 80)
+
+                rep(i, right_scouters.size())
                 {
-                    remain_resources -= 500;
-                    order[best_worker.id] = '6';
-                    my_workers.erase(find(all(my_workers), best_worker));
-                    build = true;
-                }
-            }
+                    const Unit& u = right_scouters[i];
+//                     const Pos goal = Pos(99, 99 - 40) + Pos(-40 / NUM_SCOUTERS * i, 40 / NUM_SCOUTERS * i);
+                    const Pos goal(99, 90);
 
-            if (my_workers.size() && !build)
-            {
-                sort(all(my_workers));
-                order[my_workers[0].id] = (my_workers[0].pos.x < 99 ? 'R' : 'D');
-                if (my_workers.size() > 1)
-                    order[my_workers[1].id] = (my_workers[1].pos.y < 99 ? 'D' : 'R');
-                my_workers.erase(my_workers.begin(), my_workers.begin() + min<int>(2, my_workers.size()));
-            }
-        }
-    }
+                    if (u.pos == goal)
+                        once_goal.insert(u.id);
 
-    {
-        for (auto& base : my_bases)
-        {
-            if (remain_resources >= 20)
-            {
-
-                const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
-                vector<double> ratio = { 5, 1, 3 };
-
-                const int costs[] = { 20, 40, 60 };
-                static Random ran;
-                int t = ran.select(ratio);
-                char type = "123"[t];
-
-                if (type == '3' && remain_resources < 80)
-                    type = '1';
-                else if (type == '2' && remain_resources < 60)
-                    type = '1';
-
-                order[base.id] = type;
-                if (type == '1')
-                    remain_resources -= 20;
-                else if (type == '2')
-                    remain_resources -= 40;
-                else
-                    remain_resources -= 60;
-            }
-        }
-    }
-
-    {
-        map<Pos, vector<Unit>> on_base_warriors;
-        for (Unit& warrior : my_warriors)
-        {
-            for (Unit& base : my_bases)
-                if (warrior.pos == base.pos)
-                    on_base_warriors[base.pos].push_back(warrior);
-        }
-        for (auto& it : on_base_warriors)
-        {
-            auto& warriors = it.second;
-            uniq(warriors);
-            if (warriors.size() < group_sizes[0])
-            {
-                for (Unit& warrior : it.second)
-                    my_warriors.erase(find(all(my_warriors), warrior));
-            }
-            else
-            {
-                if (group_sizes.size() > 1)
-                    group_sizes.erase(group_sizes.begin());
-            }
-        }
-
-        if (enemy_castle.id != -1)
-        {
-            int around_enemies = 0;
-            for (auto& enemy_warrior : enemy_warriors)
-                if (enemy_warrior.pos.dist(enemy_castle.pos) <= 2)
-                    ++around_enemies;
-            if (around_enemies >= 30)
-                next_attack_turn = input.current_turn + 30;
-
-            const bool back = input.current_turn < next_attack_turn;
-            for (auto& warrior : my_warriors)
-            {
-                const int d = warrior.pos.dist(enemy_castle.pos);
-                if (back && d <= 10)
-                {
-                    int best_dir = -1;
-                    rep(dir, 4)
-                        if (enemy_castle.pos.dist(warrior.pos + NEXT_POS[dir]) > d)
-                            best_dir = dir;
-                    assert(best_dir != -1);
-                    order[warrior.id] = STR_DIR[best_dir][0];
-                }
-                else if ((!back && d > warrior.attack_range()) || (back && d > 10 + 1))
-                    order[warrior.id] = STR_DIR[decide_dir(warrior.pos, enemy_castle.pos)][0];
-            }
-        }
-        else
-        {
-            if (!my_warriors.empty())
-            {
-                Board<bool> start(false);
-                Board<bool> mark(false);
-                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-                {
-                    if (abs(x - 99) + abs(y - 99) <= 40)
+                    if (!once_goal.count(u.id))
                     {
-                        mark.at(x, y) = !known.at(x, y);
-                        start.at(x, y) = !known.at(x, y);
+                        DijkstraResult res = dijkstra(u.pos, right_pass_cost_table(enemy_units), move_cost);
+                        order[u.id] = to_order(res.find_dir(goal));
                     }
-                }
-
-                auto order_to_search_castle = search_moves(my_warriors, start, mark, 200, Pos(99, 99));
-                for (auto& it : order_to_search_castle)
-                    assert(!order.count(it.first));
-                order.insert(all(order_to_search_castle));
-            }
-        }
-    }
-
-    vector<Unit> free_workers;
-    {
-        vector<Pos> rsrc_pos;
-        rep(resource_i, resource_pos.size())
-        {
-            int fixed = 0;
-            for (auto& worker : my_workers)
-                if (fixed_worker_ids.count(worker.id) && worker.pos == resource_pos[resource_i])
-                    ++fixed;
-
-            for (auto& worker : my_workers)
-            {
-                if (fixed == MAX_RESOURCE_GAIN)
-                    break;
-
-                if (!fixed_worker_ids.count(worker.id) && worker.pos == resource_pos[resource_i])
-                {
-                    ++fixed;
-                    fixed_worker_ids.insert(worker.id);
+                    else
+                        workers_in_enemy_area.push_back(u);
                 }
             }
 
-            const int need = MAX_RESOURCE_GAIN - fixed;
-            rep(_, need)
-                rsrc_pos.push_back(resource_pos[resource_i]);
+            Board<bool> unknown_enemy_area;
+            rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                unknown_enemy_area.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40 && !known.at(x, y);
+            merge_remove(order, search_moves(workers_in_enemy_area, unknown_enemy_area), workers_in_enemy_area);
         }
 
-        vector<Unit> remain_workers;
-        for (auto& worker : my_workers)
-            if (!fixed_worker_ids.count(worker.id))
-                remain_workers.push_back(worker);
+        move_for_resource(order, remain_workers);
 
-        const int n = max(rsrc_pos.size(), remain_workers.size());
-        const int inf = 114514;
-        vector<vector<int>> cost(n, vector<int>(n, inf));
-        rep(worker_i, n) rep(rsrc_i, rsrc_pos.size())
         {
-            if (worker_i >= remain_workers.size() || rsrc_i >= rsrc_pos.size())
-                cost[worker_i][rsrc_i] = inf;
-            else
-                cost[worker_i][rsrc_i] = remain_workers[worker_i].pos.dist(rsrc_pos[rsrc_i]);
+            Board<bool> mark(false);
+            rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                mark.at(x, y) = Pos(x, y).dist(Pos(0, 0)) <= 90 && !known.at(x, y);
+            merge_remove(order, search_moves(remain_workers, mark), remain_workers);
         }
-        auto matching = hungarian(cost);
-
-        map<int, char> order_to_resource;
-        rep(worker_i, remain_workers.size())
-        {
-            const Unit& worker = remain_workers[worker_i];
-            const int rsrc_i = matching[worker_i];
-            if (rsrc_i < rsrc_pos.size())
-            {
-                order_to_resource[worker.id] = STR_DIR[decide_dir(worker.pos, rsrc_pos[rsrc_i])][0];
-                my_workers.erase(find(all(my_workers), worker));
-            }
-            else
-                free_workers.push_back(worker);
-        }
-        order.insert(all(order_to_resource));
     }
-
-    if (!free_workers.empty())
-    {
-        Board<bool> start(false);
-        Board<bool> unknown(false);
-        rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-        {
-            if (x + y <= 100)
-            {
-                unknown.at(x, y) = !known.at(x, y);
-
-                if (unknown.at(x, y))
-                {
-                    bool known_border = false;
-                    for (auto& diff : NEXT_POS)
-                    {
-                        Pos p = Pos(x, y) + diff;
-                        if (p.in_board() && known.at(p))
-                            known_border = true;
-                    }
-                    start.at(x, y) = known_border;
-                }
-            }
-        }
-        auto order_to_search_resource = search_moves(free_workers, start, unknown, 100);
-        for (auto& it : order_to_search_resource)
-            assert(!order.count(it.first));
-        order.insert(all(order_to_search_resource));
-    }
-
-
-    if (my_bases.empty() && num_workers < 45 && remain_resources >= 40)
-    {
-        order[my_castle.id] = '0';
-    }
-
     return order;
 }
 

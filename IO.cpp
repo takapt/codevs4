@@ -52,3 +52,20 @@ void output(const map<int, char>& order)
         cout << it.first << " " << it.second << endl;
     cout.flush();
 }
+
+vector<Unit> select(const vector<Unit>& units, const vector<UnitType>& unit_types)
+{
+    vector<Unit> selected;
+    for (auto& unit : units)
+        if (find(all(unit_types), unit.type) != unit_types.end())
+            selected.push_back(unit);
+    return selected;
+}
+vector<Unit> InputResult::get_my(const vector<UnitType>& unit_types) const
+{
+    return select(my_units, unit_types);
+}
+vector<Unit> InputResult::get_enemy(const vector<UnitType>& unit_types) const
+{
+    return select(enemy_units, unit_types);
+}

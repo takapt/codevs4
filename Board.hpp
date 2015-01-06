@@ -20,6 +20,8 @@ public:
 
     T& at(int x, int y)
     {
+        assert(0 <= x && x < BOARD_SIZE);
+        assert(0 <= y && y < BOARD_SIZE);
         return a[y][x];
     }
     T& at(const Pos& pos)
@@ -29,6 +31,8 @@ public:
 
     const T& at(int x, int y) const
     {
+        assert(0 <= x && x < BOARD_SIZE);
+        assert(0 <= y && y < BOARD_SIZE);
         return a[y][x];
     }
     const T& at(const Pos& pos) const

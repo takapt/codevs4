@@ -23,6 +23,9 @@ const char RIGHT_ORDER = 'R';
 const char UP_ORDER = 'U';
 const char LEFT_ORDER = 'L';
 const char DOWN_ORDER = 'D';
+const char WORKER_ORDER = '0';
+
+char to_order(Dir dir);
 
 const string STR_DIR[] = {
     "RIGHT",
@@ -35,5 +38,9 @@ namespace std
 {
     ostream& operator<<(ostream& os, Dir dir);
 }
+
+
+const int WORKER_COST = 40;
+const int VILLAGE_COST = 100;
 
 #endif

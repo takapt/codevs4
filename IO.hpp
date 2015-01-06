@@ -15,6 +15,9 @@ struct InputResult
     vector<Unit> my_units;
     vector<Unit> enemy_units;
     vector<Pos> resource_pos_in_sight;
+
+    vector<Unit> get_my(const vector<UnitType>& unit_types) const;
+    vector<Unit> get_enemy(const vector<UnitType>& unit_types) const;
 };
 
 InputResult input();

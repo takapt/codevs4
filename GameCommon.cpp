@@ -8,20 +8,20 @@ int rev_dir(int dir)
 }
 Dir rev_dir(Dir dir)
 {
-    return Dir(rev_dir(dir));
+    return Dir(rev_dir((int)dir));
 }
 namespace std
 {
     ostream& operator<<(ostream& os, Dir dir)
     {
-        assert(0 <= dir && dir < 4);
-        os << STR_DIR[dir];
+        assert(0 <= dir && dir < 5);
+        os << (dir < 4 ? STR_DIR[dir] : "INVALID");
         return os;
     }
 }
 
 
-char move_order(Dir dir)
+char to_order(Dir dir)
 {
     assert(0 <= dir && dir < 4);
     return STR_DIR[dir][0];

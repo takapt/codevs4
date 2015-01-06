@@ -33,6 +33,11 @@ private:
     Board<int> cost_table(const vector<Unit>& enemy_units) const;
     Board<int> down_pass_cost_table(const vector<Unit>& enemy_units) const;
     Board<int> right_pass_cost_table(const vector<Unit>& enemy_units) const;
+    vector<int> down_scouter_ids;
+    vector<int> right_scouter_ids;
+    set<int> once_goal;
+
+    void move_for_resource(map<int, char>& order, vector<Unit>& remain_workers);
 };
 
 #endif
