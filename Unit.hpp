@@ -35,6 +35,26 @@ const int ATTACK_RANGE[] = {
     2,
 };
 
+const int CREATE_COST[] = {
+    40,
+    20,
+    40,
+    60,
+    1919810,
+    100,
+    500,
+};
+
+const char CREATE_ORDER[] = {
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '-',
+    '6',
+};
+
 // (attacker, defencer)
 const int DAMAGE_TABLE[7][7] = {
     {100, 100, 100, 100, 100, 100, 100},

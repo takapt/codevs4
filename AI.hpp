@@ -24,8 +24,6 @@ private:
     Board<bool> visited;
     Board<bool> enemy_castle_pos_cand;
 
-//     map<int, map<int, Unit>> unit_log;
-
     vector<int> group_sizes;
 
     int next_attack_turn;
@@ -35,7 +33,8 @@ private:
     Board<int> right_pass_cost_table(const vector<Unit>& enemy_units) const;
     vector<int> down_scouter_ids;
     vector<int> right_scouter_ids;
-    set<int> once_goal;
+    set<int> once_goal_scouter_ids;
+    void move_scouters(map<int, char>& order, vector<Unit>& remain_workers, const vector<Unit>& enemy_units);
 
     void move_for_resource(map<int, char>& order, vector<Unit>& remain_workers);
 };
