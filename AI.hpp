@@ -18,11 +18,12 @@ private:
     set<int> fixed_worker_ids;
 
     Unit enemy_castle;
+    vector<Unit> enemy_villages;
 
     set<int> once_behind;
 
     Board<bool> visited;
-    Board<bool> enemy_castle_pos_cand;
+//     Board<bool> enemy_castle_pos_cand;
 
     vector<int> group_sizes;
 
@@ -37,6 +38,8 @@ private:
     void move_scouters(map<int, char>& order, vector<Unit>& remain_workers, const vector<Unit>& enemy_units);
 
     void move_for_resource(map<int, char>& order, vector<Unit>& remain_workers);
+
+    bool go;
 };
 
 #endif

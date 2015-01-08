@@ -319,12 +319,13 @@ AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({10, 60, 1})
+    group_sizes({10, 60, 1}),
+    go(false)
 {
     enemy_castle.id = -1;
 
-    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-        enemy_castle_pos_cand.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40;
+//     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+//         enemy_castle_pos_cand.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40;
 
     next_attack_turn = -1919;
 }
@@ -570,8 +571,16 @@ map<int, char> AI::solve(const InputResult& input)
     resource_pos.insert(resource_pos.end(), all(input.resource_pos_in_sight));
     uniq(resource_pos);
 
-    if (!input.get_enemy({CASTLE}).empty())
-        enemy_castle = input.get_enemy({CASTLE})[0];
+
+    {
+        if (!input.get_enemy({CASTLE}).empty())
+            enemy_castle = input.get_enemy({CASTLE})[0];
+
+        auto ene_vs = input.get_enemy({VILLAGE});
+        enemy_villages.insert(enemy_villages.end(), all(ene_vs));
+        uniq(ene_vs);
+    }
+
 
     int remain_resources = input.resources;
 
@@ -616,14 +625,43 @@ map<int, char> AI::solve(const InputResult& input)
             move_scouters(order, remain_workers, enemy_units);
         else
         {
-            if (my_bases.size() < 3 && remain_resources >= CREATE_COST[BASE])
+            Board<bool> base_cand(false);
+            bool found = false;
+            rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+            {
+                int ex = enemy_castle.pos.x;
+                int ey = enemy_castle.pos.y;
+                if (enemy_castle.pos.dist(Pos(x, y)) > 10 &&
+                    x >= ex && y >= ey)
+                {
+                    base_cand.at(x, y) = true;
+                    found = true;
+                }
+            }
+            if (!found)
+            {
+                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                {
+                    int ex = enemy_castle.pos.x;
+                    int ey = enemy_castle.pos.y;
+                    if (enemy_castle.pos.dist(Pos(x, y)) > 10 &&
+                            (x >= ex || y >= ey))
+                    {
+                        base_cand.at(x, y) = true;
+                        found = true;
+                    }
+                }
+            }
+
+            if (my_bases.size() < 2 && remain_resources >= CREATE_COST[BASE])
             {
                 int best_dist = 810;
                 Unit best_worker;
                 for (auto& worker : remain_workers)
                 {
                     int d = worker.pos.dist(enemy_castle.pos);
-                    if (d < best_dist)
+//                     if (d < best_dist && d > 10 && worker.pos.x >= enemy_castle.pos.x && worker.pos.y >= enemy_castle.pos.y)
+                    if (base_cand.at(worker.pos))
                     {
                         best_dist = d;
                         best_worker = worker;
@@ -634,6 +672,42 @@ map<int, char> AI::solve(const InputResult& input)
                     remain_resources -= CREATE_COST[BASE];
                     merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
                 }
+            }
+
+            {
+                map<int, char> base_pos_order;
+
+                const auto cost = cost_table(enemy_units);
+                for (auto& worker : remain_workers)
+                {
+                    if (!base_cand.at(worker.pos) &&
+                            (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
+                             find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
+                    {
+                        DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
+
+                        int best_cost = DIJKSTRA_INF;
+                        Pos best_goal;
+                        rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                        {
+                            if (base_cand.at(x, y))
+                            {
+                                int c = res.cost.at(x, y);
+                                if (c < best_cost)
+                                {
+                                    best_cost = c;
+                                    best_goal = Pos(x, y);
+                                }
+                            }
+                        }
+                        if (best_cost != DIJKSTRA_INF)
+                        {
+                            base_pos_order[worker.id] = to_order(res.find_dir(best_goal));
+                        }
+                    }
+                }
+
+                merge_remove(order, remain_workers, base_pos_order);
             }
         }
 
@@ -667,8 +741,9 @@ map<int, char> AI::solve(const InputResult& input)
                 vector<Unit> warriors;
                 tie(pos, warriors) = it;
 
-                if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= 1))
+                if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= 60 || go))
                 {
+                    go = true;
                     for (auto& warrior : warriors)
                         warrior_order[warrior.id] = to_order(decide_dir(warrior.pos, enemy_castle.pos));
                 }
