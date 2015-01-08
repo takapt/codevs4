@@ -487,7 +487,7 @@ void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, cons
 {
     vector<Unit> workers_in_enemy_area;
     {
-        const int NUM_SCOUTERS = 6;
+        const int NUM_SCOUTERS = 8;
         auto down_scouters = extract(remain_workers, down_scouter_ids);
         while (down_scouter_ids.size() < NUM_SCOUTERS / 2 && !remain_workers.empty())
         {
@@ -577,7 +577,7 @@ map<int, char> AI::solve(const InputResult& input)
 
     map<int, char> order;
 
-    if (my_workers.size() < 45)
+    if (my_workers.size() < 37 && input.current_turn < 150)
     {
         if (remain_resources >= CREATE_COST[WORKER])
         {
@@ -594,14 +594,13 @@ map<int, char> AI::solve(const InputResult& input)
                 const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
                 vector<double> ratio = { 5, 1, 3 };
 
-                const int costs[] = { 20, 40, 60 };
                 static Random ran;
                 int t = ran.select(ratio);
                 UnitType type = warrior_types[t];
 
-                if (type == ASSASSIN && remain_resources < 80)
+                if (type == ASSASSIN && remain_resources < 80 + 40)
                     type = KNIGHT;
-                else if (type == FIGHTER && remain_resources < 60)
+                else if (type == FIGHTER && remain_resources < 60 + 20)
                     type = KNIGHT;
 
                 order[base.id] = CREATE_ORDER[type];
@@ -617,7 +616,7 @@ map<int, char> AI::solve(const InputResult& input)
             move_scouters(order, remain_workers, enemy_units);
         else
         {
-            if (my_bases.size() < 2 && remain_resources >= CREATE_COST[BASE])
+            if (my_bases.size() < 3 && remain_resources >= CREATE_COST[BASE])
             {
                 int best_dist = 810;
                 Unit best_worker;
@@ -668,7 +667,7 @@ map<int, char> AI::solve(const InputResult& input)
                 vector<Unit> warriors;
                 tie(pos, warriors) = it;
 
-                if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= 5))
+                if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= 1))
                 {
                     for (auto& warrior : warriors)
                         warrior_order[warrior.id] = to_order(decide_dir(warrior.pos, enemy_castle.pos));
