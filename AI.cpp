@@ -606,7 +606,7 @@ map<int, char> AI::solve(const InputResult& input)
                 int t = ran.select(ratio);
                 UnitType type = warrior_types[t];
 
-                if (type == ASSASSIN && remain_resources < 60 + 20 * (int)(my_bases.size() - 1))
+                if (type == ASSASSIN && remain_resources < 60)// + 20 * (int)(my_bases.size() - 1))
                     type = KNIGHT;
                 else if (type == FIGHTER && remain_resources < 40 + 20 * (int)(my_bases.size() - 1))
                     type = KNIGHT;
@@ -646,6 +646,20 @@ map<int, char> AI::solve(const InputResult& input)
         }
         else
         {
+            const bool in_sight = input.get_enemy({CASTLE}).size() > 0;
+            vector<Unit> on_castle;
+            vector<Unit> around_castle;
+            for (auto& unit : enemy_units)
+            {
+                if (unit.type != CASTLE && unit.type != WORKER)
+                {
+                    if (unit.pos == enemy_castle.pos)
+                        on_castle.push_back(unit);
+                    if (unit.pos.dist(enemy_castle.pos) <= 2)
+                        around_castle.push_back(unit);
+                }
+            }
+
             Board<bool> base_cand(false);
             bool found = false;
             rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
@@ -676,6 +690,20 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
 
+            if (in_sight && around_castle.size() == 0)
+            {
+                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                {
+                    int ex = enemy_castle.pos.x;
+                    int ey = enemy_castle.pos.y;
+                    int d = enemy_castle.pos.dist(Pos(x, y));
+                    if (d < 13)
+                    {
+                        base_cand.at(x, y) = true;
+                    }
+                }
+            }
+
             if (my_bases.size() < 2 && remain_resources >= CREATE_COST[BASE])
             {
                 int best_dist = 810;
@@ -683,7 +711,7 @@ map<int, char> AI::solve(const InputResult& input)
                 for (auto& worker : remain_workers)
                 {
                     int d = worker.pos.dist(enemy_castle.pos);
-                    if (base_cand.at(worker.pos))
+                    if (base_cand.at(worker.pos) && d < best_dist)
                     {
                         best_dist = d;
                         best_worker = worker;
@@ -803,8 +831,7 @@ map<int, char> AI::solve(const InputResult& input)
                 }
                 else
                 {
-                    const int go_line = (in_sight && on_castle.size() == 0 ? 5 : 80);
-//                     const int go_line = 80;
+                    const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 80);
                     if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= go_line || go))
                     {
                         go = true;
