@@ -319,15 +319,10 @@ AI::AI()
 :
     known(false),
     visited(false),
-    group_sizes({10, 60, 1}),
-    go(false)
+    go(false),
+    is_lila(false)
 {
     enemy_castle.id = -1;
-
-//     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-//         enemy_castle_pos_cand.at(x, y) = Pos(x, y).dist(Pos(99, 99)) <= 40;
-
-    next_attack_turn = -1919;
 }
 
 Board<int> AI::cost_table(const vector<Unit>& enemy_units) const
@@ -404,6 +399,8 @@ void merge_remove(map<int, char>& order, vector<Unit>& units, int id, char ord)
     auto it = find(all(units), u);
     assert(it != units.end());
     units.erase(it);
+    it = find(all(units), u);
+    assert(it == units.end());
 }
 
 vector<Unit> extract(vector<Unit>& units, const vector<int>& id)
@@ -553,9 +550,11 @@ void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, cons
 
 map<int, char> AI::solve(const InputResult& input)
 {
+    const vector<Unit> my_units = input.my_units;
     const vector<Unit> enemy_units = input.enemy_units;
     const Unit my_castle = input.get_my({CASTLE})[0];
     const vector<Unit> my_workers = input.get_my({WORKER});
+    const vector<Unit> my_warriors = input.get_my({KNIGHT, FIGHTER, ASSASSIN});
     const vector<Unit> my_bases = input.get_my({BASE});
 
     for (auto& unit : input.my_units)
@@ -586,7 +585,7 @@ map<int, char> AI::solve(const InputResult& input)
 
     map<int, char> order;
 
-    if (my_workers.size() < 37 && input.current_turn < 150)
+    if (my_workers.size() < 45 && input.current_turn < 150)
     {
         if (remain_resources >= CREATE_COST[WORKER])
         {
@@ -607,9 +606,9 @@ map<int, char> AI::solve(const InputResult& input)
                 int t = ran.select(ratio);
                 UnitType type = warrior_types[t];
 
-                if (type == ASSASSIN && remain_resources < 80 + 40)
+                if (type == ASSASSIN && remain_resources < 60 + 20 * (int)(my_bases.size() - 1))
                     type = KNIGHT;
-                else if (type == FIGHTER && remain_resources < 60 + 20)
+                else if (type == FIGHTER && remain_resources < 40 + 20 * (int)(my_bases.size() - 1))
                     type = KNIGHT;
 
                 order[base.id] = CREATE_ORDER[type];
@@ -618,11 +617,33 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
 
+
     {
         auto remain_workers = input.get_my({WORKER});
 
         if (enemy_castle.id == -1)
+        {
+            if (remain_resources >= CREATE_COST[VILLAGE])
+            {
+//                 dump(input.current_turn);
+                map<int, int> predict_damage = simulate_damage(enemy_units, my_units);
+                for (auto& worker : remain_workers)
+                {
+//                     if (worker.id == 1)
+//                     {
+//                         assert(predict_damage.count(1));
+//                         fprintf(stderr, "%4d: %4d, %4d\n", input.current_turn, worker.hp, prev_unit[worker.id].hp - predict_damage[worker.id]);
+//                     }
+                    if (prev_unit.count(worker.id) && worker.hp < prev_unit[worker.id].hp - predict_damage[worker.id])
+                    {
+                        merge_remove(order, remain_workers, worker.id, CREATE_ORDER[VILLAGE]);
+                        break;
+                    }
+                }
+            }
+
             move_scouters(order, remain_workers, enemy_units);
+        }
         else
         {
             Board<bool> base_cand(false);
@@ -631,8 +652,9 @@ map<int, char> AI::solve(const InputResult& input)
             {
                 int ex = enemy_castle.pos.x;
                 int ey = enemy_castle.pos.y;
-                if (enemy_castle.pos.dist(Pos(x, y)) > 10 &&
-                    x >= ex && y >= ey)
+                int d = enemy_castle.pos.dist(Pos(x, y));
+                if (13 <= d && d <= 16 &&
+                        x >= ex && y >= ey)
                 {
                     base_cand.at(x, y) = true;
                     found = true;
@@ -644,8 +666,9 @@ map<int, char> AI::solve(const InputResult& input)
                 {
                     int ex = enemy_castle.pos.x;
                     int ey = enemy_castle.pos.y;
-                    if (enemy_castle.pos.dist(Pos(x, y)) > 10 &&
-                            (x >= ex || y >= ey))
+                    int d = enemy_castle.pos.dist(Pos(x, y));
+                    if (13 <= d && d <= 16 &&
+                        (x >= ex || y >= ey))
                     {
                         base_cand.at(x, y) = true;
                         found = true;
@@ -654,13 +677,14 @@ map<int, char> AI::solve(const InputResult& input)
             }
 
             if (my_bases.size() < 2 && remain_resources >= CREATE_COST[BASE])
+//                 && (remain_resources >= CREATE_COST[BASE] + 300 || input.resources >= 40))
             {
                 int best_dist = 810;
                 Unit best_worker;
                 for (auto& worker : remain_workers)
                 {
                     int d = worker.pos.dist(enemy_castle.pos);
-//                     if (d < best_dist && d > 10 && worker.pos.x >= enemy_castle.pos.x && worker.pos.y >= enemy_castle.pos.y)
+                    //                     if (d < best_dist && d > 10 && worker.pos.x >= enemy_castle.pos.x && worker.pos.y >= enemy_castle.pos.y)
                     if (base_cand.at(worker.pos))
                     {
                         best_dist = d;
@@ -724,6 +748,22 @@ map<int, char> AI::solve(const InputResult& input)
     {
         if (enemy_castle.id != -1)
         {
+            const bool in_sight = input.get_enemy({CASTLE}).size() > 0;
+            vector<Unit> on_castle;
+            vector<Unit> around_castle;
+            for (auto& unit : enemy_units)
+            {
+                if (unit.type != CASTLE)
+                {
+                    if (unit.pos == enemy_castle.pos)
+                        on_castle.push_back(unit);
+                    if (unit.pos.dist(enemy_castle.pos) <= 2)
+                        around_castle.push_back(unit);
+                }
+            }
+            if (around_castle.size() >= 15)
+                is_lila = true;
+
             auto remain_warriors = input.get_my({KNIGHT, FIGHTER, ASSASSIN});
             map<int, char> warrior_order;
 
@@ -741,17 +781,51 @@ map<int, char> AI::solve(const InputResult& input)
                 vector<Unit> warriors;
                 tie(pos, warriors) = it;
 
-                if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= 60 || go))
+                if (is_lila)
                 {
-                    go = true;
-                    for (auto& warrior : warriors)
-                        warrior_order[warrior.id] = to_order(decide_dir(warrior.pos, enemy_castle.pos));
+                    if (my_warriors.size() >= around_castle.size() + 40)
+                        go = true;
+                    else if (!go)
+                    {
+                        if (pos.dist(enemy_castle.pos) <= 10)
+                        {
+                            for (auto& warrior : warriors)
+                                warrior_order[warrior.id] = to_order(rev_dir(decide_dir(warrior.pos, enemy_castle.pos)));
+                        }
+                    }
+
+                    if (go)
+                    {
+                        if (pos.dist(enemy_castle.pos) > 2)
+                        {
+                            for (auto& warrior : warriors)
+                                warrior_order[warrior.id] = to_order(decide_dir(warrior.pos, enemy_castle.pos));
+                        }
+                    }
+                }
+                else
+                {
+//                     const int go_line = (in_sight && on_castle.size() == 0 ? 5 : 60);
+                    const int go_line = 60;
+                    if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= go_line || go))
+                    {
+                        go = true;
+                        for (auto& warrior : warriors)
+                            warrior_order[warrior.id] = to_order(decide_dir(warrior.pos, enemy_castle.pos));
+                    }
                 }
             }
 
             merge_remove(order, remain_warriors, warrior_order);
         }
     }
+
+
+    prev_unit.clear();
+    for (auto& unit : my_units)
+        prev_unit[unit.id] = unit;
+    //     if (prev_unit.count(1))
+    //         fprintf(stderr, "%4d: %4d\n", input.current_turn, prev_unit[1].hp);
 
     return order;
 }
