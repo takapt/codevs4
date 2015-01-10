@@ -677,14 +677,12 @@ map<int, char> AI::solve(const InputResult& input)
             }
 
             if (my_bases.size() < 2 && remain_resources >= CREATE_COST[BASE])
-//                 && (remain_resources >= CREATE_COST[BASE] + 300 || input.resources >= 40))
             {
                 int best_dist = 810;
                 Unit best_worker;
                 for (auto& worker : remain_workers)
                 {
                     int d = worker.pos.dist(enemy_castle.pos);
-                    //                     if (d < best_dist && d > 10 && worker.pos.x >= enemy_castle.pos.x && worker.pos.y >= enemy_castle.pos.y)
                     if (base_cand.at(worker.pos))
                     {
                         best_dist = d;
@@ -753,7 +751,7 @@ map<int, char> AI::solve(const InputResult& input)
             vector<Unit> around_castle;
             for (auto& unit : enemy_units)
             {
-                if (unit.type != CASTLE)
+                if (unit.type != CASTLE && unit.type != WORKER)
                 {
                     if (unit.pos == enemy_castle.pos)
                         on_castle.push_back(unit);
@@ -783,7 +781,7 @@ map<int, char> AI::solve(const InputResult& input)
 
                 if (is_lila)
                 {
-                    if (my_warriors.size() >= around_castle.size() + 40)
+                    if (around_castle.size() <= 20 && my_warriors.size() >= around_castle.size() + 90)
                         go = true;
                     else if (!go)
                     {
@@ -805,8 +803,8 @@ map<int, char> AI::solve(const InputResult& input)
                 }
                 else
                 {
-//                     const int go_line = (in_sight && on_castle.size() == 0 ? 5 : 60);
-                    const int go_line = 60;
+                    const int go_line = (in_sight && on_castle.size() == 0 ? 5 : 80);
+//                     const int go_line = 80;
                     if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || warriors.size() >= go_line || go))
                     {
                         go = true;
