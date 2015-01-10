@@ -629,11 +629,6 @@ map<int, char> AI::solve(const InputResult& input)
                 map<int, int> predict_damage = simulate_damage(enemy_units, my_units);
                 for (auto& worker : remain_workers)
                 {
-//                     if (worker.id == 1)
-//                     {
-//                         assert(predict_damage.count(1));
-//                         fprintf(stderr, "%4d: %4d, %4d\n", input.current_turn, worker.hp, prev_unit[worker.id].hp - predict_damage[worker.id]);
-//                     }
                     if (prev_unit.count(worker.id) && worker.hp < prev_unit[worker.id].hp - predict_damage[worker.id])
                     {
                         merge_remove(order, remain_workers, worker.id, CREATE_ORDER[VILLAGE]);
