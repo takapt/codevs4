@@ -629,7 +629,7 @@ map<int, char> AI::solve(const InputResult& input)
                 map<int, int> predict_damage = simulate_damage(enemy_units, my_units);
                 for (auto& worker : remain_workers)
                 {
-                    if (prev_unit.count(worker.id) && worker.hp < prev_unit[worker.id].hp - predict_damage[worker.id])
+                    if (worker.pos.dist(Pos(99, 99)) <= 40 + 10 && prev_unit.count(worker.id) && worker.hp < prev_unit[worker.id].hp - predict_damage[worker.id])
                     {
                         merge_remove(order, remain_workers, worker.id, CREATE_ORDER[VILLAGE]);
                         break;
