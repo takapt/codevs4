@@ -582,8 +582,53 @@ map<int, char> AI::solve(const InputResult& input)
 
 
     int remain_resources = input.resources;
+    auto remain_workers = input.get_my({WORKER});
 
     map<int, char> order;
+
+    if (input.current_turn < 200)
+    {
+        bool found = false;
+        for (auto& u : enemy_units)
+            found |= u.pos.dist(my_castle.pos) <= 10;
+
+        if (found)
+        {
+            int num_on_villages = 0;
+            for (auto& village : input.get_my({VILLAGE}))
+                if (village.pos == my_castle.pos)
+                    ++num_on_villages;
+
+            if (num_on_villages <= 2)
+            {
+                Unit on_worker;
+                on_worker.id = -1;
+                for (auto& worker : remain_workers)
+                {
+                    if (worker.pos == my_castle.pos)
+                        on_worker = worker;
+                }
+
+
+                if (on_worker.id == -1)
+                {
+                    if (remain_resources >= CREATE_COST[WORKER])
+                    {
+                        order[my_castle.id] = CREATE_ORDER[WORKER];
+                        remain_resources -= CREATE_COST[WORKER];
+                    }
+                }
+                else
+                {
+                    if (remain_resources >= CREATE_COST[VILLAGE])
+                    {
+                        merge_remove(order, remain_workers, on_worker.id, CREATE_ORDER[VILLAGE]);
+                        remain_resources -= CREATE_COST[VILLAGE];
+                    }
+                }
+            }
+        }
+    }
 
     if (my_workers.size() < 45 && input.current_turn < 150)
     {
@@ -619,7 +664,6 @@ map<int, char> AI::solve(const InputResult& input)
 
 
     {
-        auto remain_workers = input.get_my({WORKER});
 
         if (enemy_castle.id == -1)
         {
