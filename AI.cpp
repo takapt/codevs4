@@ -197,15 +197,10 @@ map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& mark, 
     }
     const vector<int> matching = hungarian(cost);
 
-//     vector<Pos> target_pos(units.size());
     map<int, char> order;
     rep(unit_i, units.size())
     {
         const auto& target = nearest_pos[unit_i][matching[unit_i]];
-//         if (target == dummy_pos)
-//             target_pos[unit_i] = units[unit_i].pos;
-//         else
-//             target_pos[unit_i] = target;
         if (target != dummy_pos)
         {
             order[units[unit_i].id] = to_order(decide_dir(units[unit_i].pos, target));
@@ -669,7 +664,6 @@ map<int, char> AI::solve(const InputResult& input)
         {
             if (remain_resources >= CREATE_COST[VILLAGE])
             {
-//                 dump(input.current_turn);
                 map<int, int> predict_damage = simulate_damage(enemy_units, my_units);
                 for (auto& worker : remain_workers)
                 {
@@ -888,8 +882,6 @@ map<int, char> AI::solve(const InputResult& input)
     prev_unit.clear();
     for (auto& unit : my_units)
         prev_unit[unit.id] = unit;
-    //     if (prev_unit.count(1))
-    //         fprintf(stderr, "%4d: %4d\n", input.current_turn, prev_unit[1].hp);
 
     return order;
 }
