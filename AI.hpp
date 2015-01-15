@@ -23,6 +23,11 @@ private:
     set<int> once_behind;
 
     Board<bool> visited;
+//     Board<bool> enemy_castle_pos_cand;
+
+    vector<int> group_sizes;
+
+    int next_attack_turn;
 
     Board<int> cost_table(const vector<Unit>& enemy_units) const;
     Board<int> down_pass_cost_table(const vector<Unit>& enemy_units) const;
@@ -35,10 +40,6 @@ private:
     void move_for_resource(map<int, char>& order, vector<Unit>& remain_workers);
 
     bool go;
-
-    map<int, Unit> prev_unit;
-
-    bool is_lila;
 };
 
 #endif
