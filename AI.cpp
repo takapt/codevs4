@@ -642,7 +642,7 @@ map<int, char> AI::solve(const InputResult& input)
             if (remain_resources >= 20)
             {
                 const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
-                vector<double> ratio = { 5, 1, 3 };
+                vector<double> ratio = { 5, 1, 5 };
 
                 static Random ran;
                 int t = ran.select(ratio);
@@ -687,8 +687,20 @@ map<int, char> AI::solve(const InputResult& input)
                         find(all(down_scouter_ids), w.id) != down_scouter_ids.end())
                         scouters.push_back(w);
                 }
+                int stalkers = 0;
+                for (auto& w : remain_workers)
+                {
+                    for (auto e : enemy_warriors)
+                    {
+                        if (e.pos.dist(w.pos) <= e.sight_range())
+                        {
+                            ++stalkers;
+                            break;
+                        }
+                    }
+                }
 
-                if (my_bases.size() < 2 && scouters.size() <= 3 && remain_resources >= CREATE_COST[BASE])
+                if (stalkers - 1 >= (int)scouters.size() && my_bases.size() < 2 && scouters.size() <= 3 && remain_resources >= CREATE_COST[BASE])
                 {
                     int best_dist = 810;
                     Unit best_worker;
@@ -703,6 +715,8 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                     if (best_dist != 810)
                     {
+                        dump(stalkers);
+                        dump(scouters.size());
                         remain_resources -= CREATE_COST[BASE];
                         merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
                     }
@@ -810,10 +824,10 @@ map<int, char> AI::solve(const InputResult& input)
             rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
             {
                 any_cand |= base_cand.at(x, y);
-                if (!known.at(x, y))
+                if (Pos(x, y).dist(Pos(99, 99)) <= 40 && !known.at(x, y))
                     ++unknown;
             }
-            if (!any_cand && unknown <= 10)
+            if (!any_cand && unknown <= 20)
             {
                 rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
                 {
@@ -859,18 +873,25 @@ map<int, char> AI::solve(const InputResult& input)
                     all_stalked &= stalked;
                 }
 
-                int best_dist = 810;
+                int best_score = 1919810;
                 Unit best_worker;
                 for (auto& worker : scouters)
                 {
+                    assert(enemy_castle.id != -1);
                     int d = worker.pos.dist(enemy_castle.pos);
-                    if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos)) && d < best_dist)
+                    int score = d;
+                    if (worker.pos.x < enemy_castle.pos.x)
+                        score += 1000;
+                    if (worker.pos.y < enemy_castle.pos.y)
+                        score += 1000;
+
+                    if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos)) && score < best_score)
                     {
-                        best_dist = d;
+                        best_score = score;
                         best_worker = worker;
                     }
                 }
-                if (best_dist != 810)
+                if (best_score != 1919810)
                 {
                     remain_resources -= CREATE_COST[BASE];
                     merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
@@ -1013,7 +1034,7 @@ map<int, char> AI::solve(const InputResult& input)
                     if (around_my_castle >= 3)
                         go = true;
 
-                    const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 80);
+                    const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 90);
                     if (my_warriors.size() >= go_line)
                         go = true;
                     if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || my_warriors.size() >= go_line || go))
