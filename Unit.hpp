@@ -84,6 +84,8 @@ struct Unit
     {
         return id == other.id;
     }
+
+    bool is_warrior() const { return type == KNIGHT || type == FIGHTER || type == ASSASSIN; }
 };
 
 map<int, int> simulate_damage(const vector<Unit>& a, const vector<Unit>& b);

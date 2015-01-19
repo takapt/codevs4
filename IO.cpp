@@ -40,7 +40,9 @@ InputResult input()
 
     string end;
     cin >> end;
-    assert(end == "END");
+//     assert(end == "END");
+    if (end != "END")
+        result.current_stage_no = -1;
 
     return result;
 }

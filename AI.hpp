@@ -15,7 +15,6 @@ public:
 private:
     Board<bool> known;
     vector<Pos> resource_pos;
-    set<int> fixed_worker_ids;
 
     Unit enemy_castle;
     vector<Unit> enemy_villages;
@@ -39,6 +38,8 @@ private:
     map<int, Unit> prev_unit;
 
     bool is_lila;
+
+    vector<int> warrior_scouter_ids;
 };
 
 #endif

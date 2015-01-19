@@ -12,6 +12,9 @@ int main()
     for (;;)
     {
         InputResult input_result = input();
+        if (input_result.current_stage_no == -1)
+            break;
+
         if (input_result.current_turn == 0)
             ai = AI();
 
