@@ -805,15 +805,38 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
 
+            int unknown = 0;
             bool any_cand = false;
             rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+            {
                 any_cand |= base_cand.at(x, y);
-            if (!any_cand)
+                if (!known.at(x, y))
+                    ++unknown;
+            }
+            if (!any_cand && unknown <= 10)
             {
                 rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
                 {
                     if (Pos(x, y).dist(Pos(99, 99)) <= 40)
                         base_cand.at(x, y) = true;
+                }
+                for (auto& u : enemy_villages)
+                {
+                    for (auto& diff : RANGE_POS[u.sight_range()])
+                    {
+                        Pos p = u.pos + diff;
+                        if (p.in_board())
+                            base_cand.at(p) = false;
+                    }
+                }
+                for (auto& u : enemy_units)
+                {
+                    for (auto& diff : RANGE_POS[u.sight_range()])
+                    {
+                        Pos p = u.pos + diff;
+                        if (p.in_board())
+                            base_cand.at(p) = false;
+                    }
                 }
             }
 
@@ -826,14 +849,22 @@ map<int, char> AI::solve(const InputResult& input)
                         find(all(down_scouter_ids), w.id) != down_scouter_ids.end())
                         scouters.push_back(w);
                 }
-
+                bool all_stalked = true;
+                for (auto& w : scouters)
+                {
+                    bool stalked = false;
+                    for (auto& e : enemy_warriors)
+                        if (w.pos.dist(e.pos) <= e.sight_range())
+                            stalked = true;
+                    all_stalked &= stalked;
+                }
 
                 int best_dist = 810;
                 Unit best_worker;
                 for (auto& worker : scouters)
                 {
                     int d = worker.pos.dist(enemy_castle.pos);
-                    if (((scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 13) || base_cand.at(worker.pos)) && d < best_dist)
+                    if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos)) && d < best_dist)
                     {
                         best_dist = d;
                         best_worker = worker;
@@ -953,7 +984,7 @@ map<int, char> AI::solve(const InputResult& input)
 
                 if (is_lila)
                 {
-                    if ((around_castle.size() <= 10 && my_warriors.size() >= 40) || my_warriors.size() >= 80)
+                    if ((around_castle.size() <= 10 && my_warriors.size() >= 50) || my_warriors.size() >= around_castle.size() + 80)
                         go = true;
                     else if (!go)
                     {
@@ -975,9 +1006,12 @@ map<int, char> AI::solve(const InputResult& input)
                 }
                 else
                 {
+                    int around_my_castle = 0;
                     for (auto& w : enemy_warriors)
-                        if (my_castle.pos.dist(w.pos) <= 4)
-                            go = true;
+                        if (my_castle.pos.dist(w.pos) <= 10)
+                            ++around_my_castle;
+                    if (around_my_castle >= 3)
+                        go = true;
 
                     const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 80);
                     if (my_warriors.size() >= go_line)
