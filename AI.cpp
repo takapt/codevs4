@@ -917,20 +917,6 @@ map<int, char> AI::solve(const InputResult& input)
                             (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
                              find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
                     {
-//                         if (scouters.size() > 2)
-//                         {
-//                             Unit stalker;
-//                             stalker.id = -1;
-//                             for (auto& w : enemy_warriors)
-//                                 if (w.pos.dist(worker.pos) <= w.sight_range())
-//                                     stalker = w;
-//                             if (stalker.id != -1 && worker.pos != stalker.pos)
-//                             {
-//                                 base_pos_order[worker.id] = to_order(decide_dir(worker.pos, stalker.pos));
-//                                 continue;
-//                             }
-//                         }
-
                         DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
 
                         int best_cost = DIJKSTRA_INF;
@@ -955,6 +941,26 @@ map<int, char> AI::solve(const InputResult& input)
                 }
 
                 merge_remove(order, remain_workers, base_pos_order);
+            }
+            else
+            {
+                for (auto& worker : remain_workers)
+                {
+                    if (!base_cand.at(worker.pos) &&
+                            (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
+                             find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
+                    {
+                        Unit stalker;
+                        stalker.id = -1;
+                        for (auto& w : enemy_warriors)
+                            if (w.pos.dist(worker.pos) <= w.sight_range())
+                                stalker = w;
+                        if (stalker.id != -1 && worker.pos != stalker.pos)
+                        {
+                            merge_remove(order, remain_workers, worker.id, to_order(decide_dir(worker.pos, stalker.pos)));
+                        }
+                    }
+                }
             }
         }
 
