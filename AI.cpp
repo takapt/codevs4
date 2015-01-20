@@ -597,31 +597,36 @@ map<int, char> AI::solve(const InputResult& input)
                 if (village.pos == my_castle.pos)
                     ++num_on_villages;
 
-            if (num_on_villages <= 2)
+            vector<Unit> on_workers;
+            for (auto& worker : remain_workers)
             {
-                Unit on_worker;
-                on_worker.id = -1;
-                for (auto& worker : remain_workers)
-                {
-                    if (worker.pos == my_castle.pos)
-                        on_worker = worker;
-                }
+                if (worker.pos == my_castle.pos)
+                    on_workers.push_back(worker);
+            }
 
 
-                if (on_worker.id == -1)
+            if (on_workers.empty())
+            {
+                if (remain_resources >= CREATE_COST[WORKER])
                 {
-                    if (remain_resources >= CREATE_COST[WORKER])
-                    {
-                        order[my_castle.id] = CREATE_ORDER[WORKER];
-                        remain_resources -= CREATE_COST[WORKER];
-                    }
+                    order[my_castle.id] = CREATE_ORDER[WORKER];
+                    remain_resources -= CREATE_COST[WORKER];
                 }
-                else
+            }
+            else
+            {
+                for (auto& on_worker : on_workers)
                 {
-                    if (remain_resources >= CREATE_COST[VILLAGE])
+                    if (num_on_villages <= 2 && remain_resources >= CREATE_COST[VILLAGE])
                     {
                         merge_remove(order, remain_workers, on_worker.id, CREATE_ORDER[VILLAGE]);
                         remain_resources -= CREATE_COST[VILLAGE];
+
+                        ++num_on_villages;
+                    }
+                    else
+                    {
+                        remain_workers.erase(find(all(remain_workers), on_worker));
                     }
                 }
             }
@@ -682,20 +687,6 @@ map<int, char> AI::solve(const InputResult& input)
                     break;
                 }
             }
-
-//             if (remain_resources >= 20)
-//             {
-//
-//                 static Random ran;
-//                 int t = ran.select(ratio);
-//                 UnitType type = warrior_types[t];
-//
-//                 if (type == ASSASSIN && remain_resources < 60)// + 20 * (int)(my_bases.size() - 1))
-//                     type = KNIGHT;
-//                 else if (type == FIGHTER && remain_resources < 40 + 20 * (int)(my_bases.size() - 1))
-//                     type = KNIGHT;
-//
-//             }
         }
     }
 
@@ -934,10 +925,6 @@ map<int, char> AI::solve(const InputResult& input)
                             score += 1000;
                     }
 
-                    if (input.current_turn == 162)
-                    {
-                        fprintf(stderr, "%3d: %d, %d\n", worker.id, base_cand.at(worker.pos), score);
-                    }
 
                     if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos)) && score < best_score)
                     {
@@ -947,11 +934,23 @@ map<int, char> AI::solve(const InputResult& input)
                 }
                 if (best_score != 1919810)
                 {
-                    dump(input.current_turn);
-                    dump(best_worker.id);
-                    cerr << endl;
                     remain_resources -= CREATE_COST[BASE];
                     merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
+                }
+            }
+
+            if (fast_attack)
+            {
+                for (auto& worker : remain_workers)
+                {
+                    if (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
+                        find(all(down_scouter_ids), worker.id) != down_scouter_ids.end())
+                    {
+                        if (!order.count(worker.id) && enemy_castle.pos.dist(worker.pos) > 2)
+                        {
+                            merge_remove(order, remain_workers, worker.id, to_order(decide_dir(worker.pos, enemy_castle.pos)));
+                        }
+                    }
                 }
             }
 
