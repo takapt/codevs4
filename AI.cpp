@@ -966,7 +966,11 @@ map<int, char> AI::solve(const InputResult& input)
                         scouters.push_back(w);
                 }
 
-                const auto cost = cost_table(enemy_units);
+//                 const auto cost = cost_table(enemy_units);
+                Board<int> cost(0);
+                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                    if (!base_cand.at(x, y))
+                        cost.at(x, y) = 100;
                 for (auto& worker : remain_workers)
                 {
                     if (!base_cand.at(worker.pos) &&
