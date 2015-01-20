@@ -315,7 +315,8 @@ AI::AI()
     known(false),
     visited(false),
     go(false),
-    is_lila(false)
+    is_lila(false),
+    fast_attack(false)
 {
     enemy_castle.id = -1;
 }
@@ -830,21 +831,6 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                 }
             }
-
-            if (in_sight && around_castle.size() == 0)
-            {
-                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-                {
-                    int ex = enemy_castle.pos.x;
-                    int ey = enemy_castle.pos.y;
-                    int d = enemy_castle.pos.dist(Pos(x, y));
-                    if (d < 13)
-                    {
-                        base_cand.at(x, y) = true;
-                    }
-                }
-            }
-
             for (auto& u : enemy_villages)
             {
                 for (auto& diff : RANGE_POS[u.sight_range()])
@@ -861,6 +847,21 @@ map<int, char> AI::solve(const InputResult& input)
                     Pos p = u.pos + diff;
                     if (p.in_board())
                         base_cand.at(p) = false;
+                }
+            }
+
+            if (in_sight && around_castle.size() == 0)
+            {
+                fast_attack = true;
+                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                {
+                    int ex = enemy_castle.pos.x;
+                    int ey = enemy_castle.pos.y;
+                    int d = enemy_castle.pos.dist(Pos(x, y));
+                    if (d < 13)
+                    {
+                        base_cand.at(x, y) = true;
+                    }
                 }
             }
 
@@ -922,13 +923,21 @@ map<int, char> AI::solve(const InputResult& input)
                 Unit best_worker;
                 for (auto& worker : scouters)
                 {
-                    assert(enemy_castle.id != -1);
                     int d = worker.pos.dist(enemy_castle.pos);
                     int score = d;
-                    if (worker.pos.x < enemy_castle.pos.x)
-                        score += 1000;
-                    if (worker.pos.y < enemy_castle.pos.y)
-                        score += 1000;
+
+                    if (!fast_attack)
+                    {
+                        if (worker.pos.x < enemy_castle.pos.x)
+                            score += 1000;
+                        if (worker.pos.y < enemy_castle.pos.y)
+                            score += 1000;
+                    }
+
+                    if (input.current_turn == 162)
+                    {
+                        fprintf(stderr, "%3d: %d, %d\n", worker.id, base_cand.at(worker.pos), score);
+                    }
 
                     if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos)) && score < best_score)
                     {
@@ -938,6 +947,9 @@ map<int, char> AI::solve(const InputResult& input)
                 }
                 if (best_score != 1919810)
                 {
+                    dump(input.current_turn);
+                    dump(best_worker.id);
+                    cerr << endl;
                     remain_resources -= CREATE_COST[BASE];
                     merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
                 }
@@ -962,6 +974,18 @@ map<int, char> AI::solve(const InputResult& input)
                             (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
                              find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
                     {
+                        // TODO: 過去のストーカー情報を持って、3ターン連続でストークならとかにする
+//                         Unit stalker;
+//                         stalker.id = -1;
+//                         for (auto& w : enemy_warriors)
+//                             if (w.pos.dist(worker.pos) <= w.sight_range())
+//                                 stalker = w;
+//                         if (stalker.id != -1 && worker.pos != stalker.pos)
+//                         {
+//                             merge_remove(order, remain_workers, worker.id, to_order(decide_dir(worker.pos, stalker.pos)));
+//                             continue;
+//                         }
+
                         DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
 
                         int best_cost = DIJKSTRA_INF;
