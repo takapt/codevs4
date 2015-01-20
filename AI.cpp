@@ -637,25 +637,64 @@ map<int, char> AI::solve(const InputResult& input)
     }
 
     {
+        const bool in_sight = input.get_enemy({CASTLE}).size() > 0;
+        vector<Unit> on_castle;
+        vector<Unit> around_castle;
+        for (auto& unit : enemy_units)
+        {
+            if (unit.type != CASTLE && unit.type != WORKER)
+            {
+                if (unit.pos == enemy_castle.pos)
+                    on_castle.push_back(unit);
+                if (unit.pos.dist(enemy_castle.pos) <= 2)
+                    around_castle.push_back(unit);
+            }
+        }
+
+        const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
+        vector<double> ratio;
+        if (in_sight && around_castle.size() == 0)
+            ratio = {1, 0, 0};
+        else
+            ratio = {5, 1, 5};
         for (auto& base : my_bases)
         {
-            if (remain_resources >= 20)
+            vector<bool> to_make(3, false);
+            if (!my_warriors.empty())
             {
-                const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
-                vector<double> ratio = { 5, 1, 5 };
-
-                static Random ran;
-                int t = ran.select(ratio);
-                UnitType type = warrior_types[t];
-
-                if (type == ASSASSIN && remain_resources < 60)// + 20 * (int)(my_bases.size() - 1))
-                    type = KNIGHT;
-                else if (type == FIGHTER && remain_resources < 40 + 20 * (int)(my_bases.size() - 1))
-                    type = KNIGHT;
-
-                order[base.id] = CREATE_ORDER[type];
-                remain_resources -= CREATE_COST[type];
+                rep(i, 3)
+                {
+                    double current_ratio = (double)input.get_my({warrior_types[i]}).size() / my_warriors.size();
+                    to_make[i] = current_ratio <= ratio[i] / accumulate(all(ratio), 0.0);
+                }
             }
+            else
+                to_make = vector<bool>(3, true);
+
+            rep(i, 3)
+            {
+                UnitType type = warrior_types[i];
+                if (to_make[i] && remain_resources >= CREATE_COST[type])
+                {
+                    order[base.id] = CREATE_ORDER[type];
+                    remain_resources -= CREATE_COST[type];
+                    break;
+                }
+            }
+
+//             if (remain_resources >= 20)
+//             {
+//
+//                 static Random ran;
+//                 int t = ran.select(ratio);
+//                 UnitType type = warrior_types[t];
+//
+//                 if (type == ASSASSIN && remain_resources < 60)// + 20 * (int)(my_bases.size() - 1))
+//                     type = KNIGHT;
+//                 else if (type == FIGHTER && remain_resources < 40 + 20 * (int)(my_bases.size() - 1))
+//                     type = KNIGHT;
+//
+//             }
         }
     }
 
@@ -758,30 +797,36 @@ map<int, char> AI::solve(const InputResult& input)
 
             Board<bool> base_cand(false);
             bool found = false;
-            rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-            {
-                int ex = enemy_castle.pos.x;
-                int ey = enemy_castle.pos.y;
-                int d = enemy_castle.pos.dist(Pos(x, y));
-                if (13 <= d && d <= 160 &&
-                        x >= ex && y >= ey)
-                {
-                    base_cand.at(x, y) = true;
-                    found = true;
-                }
-            }
-            if (!found)
+            for (int k = 5; k >= 0 && !found; --k)
             {
                 rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
                 {
                     int ex = enemy_castle.pos.x;
                     int ey = enemy_castle.pos.y;
                     int d = enemy_castle.pos.dist(Pos(x, y));
-                    if (13 <= d && d <= 160 &&
-                        (x >= ex || y >= ey))
+                    if (13 <= d && d <= 25 &&
+                            x >= ex + k && y >= ey + k)
                     {
                         base_cand.at(x, y) = true;
                         found = true;
+                    }
+                }
+            }
+            if (!found)
+            {
+                for (int k = 10; k >= 0 && !found; --k)
+                {
+                    rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                    {
+                        int ex = enemy_castle.pos.x;
+                        int ey = enemy_castle.pos.y;
+                        int d = enemy_castle.pos.dist(Pos(x, y));
+                        if (12 <= d && d <= 25 &&
+                                (x >= ex + k|| y >= ey + k))
+                        {
+                            base_cand.at(x, y) = true;
+                            found = true;
+                        }
                     }
                 }
             }
@@ -1011,7 +1056,7 @@ map<int, char> AI::solve(const InputResult& input)
 
                 if (is_lila)
                 {
-                    if ((around_castle.size() <= 10 && my_warriors.size() >= 50) || my_warriors.size() >= around_castle.size() + 80)
+                    if ((in_sight && around_castle.size() <= 10 && my_warriors.size() >= 50) || my_warriors.size() >= around_castle.size() + 80)
                         go = true;
                     else if (!go)
                     {
