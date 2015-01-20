@@ -746,8 +746,6 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                     if (best_dist != 810)
                     {
-                        dump(stalkers);
-                        dump(scouters.size());
                         remain_resources -= CREATE_COST[BASE];
                         merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
                     }
