@@ -41,9 +41,6 @@ vector<int> hungarian(vector<vector<int>> a)
             for (int k = 0; k <= q; ++k) fx[s[k]] -= d;
         } else ++i;
     }
-//     int ret = 0;
-//     for (int i = 0; i < n; ++i) ret += a[i][x[i]];
-//     return ret;
 
     return x;
 }
@@ -964,7 +961,6 @@ map<int, char> AI::solve(const InputResult& input)
                         scouters.push_back(w);
                 }
 
-//                 const auto cost = cost_table(enemy_units);
                 Board<int> cost(0);
                 rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
                     if (!base_cand.at(x, y))
