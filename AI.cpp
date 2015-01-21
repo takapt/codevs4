@@ -380,6 +380,9 @@ void merge_remove(map<int, char>& order, vector<Unit>& units, const map<int, cha
         auto it = find(all(units), u);
         assert(it != units.end());
         units.erase(it);
+
+        it = find(all(units), u);
+        assert(it == units.end());
     }
 }
 void merge_remove(map<int, char>& order, vector<Unit>& units, int id, char ord)
@@ -392,6 +395,7 @@ void merge_remove(map<int, char>& order, vector<Unit>& units, int id, char ord)
     auto it = find(all(units), u);
     assert(it != units.end());
     units.erase(it);
+
     it = find(all(units), u);
     assert(it == units.end());
 }
@@ -589,6 +593,8 @@ map<int, char> AI::solve(const InputResult& input)
 
         if (found)
         {
+            go = true;
+
             int num_on_villages = 0;
             for (auto& village : input.get_my({VILLAGE}))
                 if (village.pos == my_castle.pos)
@@ -623,7 +629,9 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                     else
                     {
-                        remain_workers.erase(find(all(remain_workers), on_worker));
+                        auto it = find(all(remain_workers), on_worker);
+                        assert(it != remain_workers.end());
+                        remain_workers.erase(it);
                     }
                 }
             }
@@ -1012,9 +1020,10 @@ map<int, char> AI::solve(const InputResult& input)
             {
                 for (auto& worker : remain_workers)
                 {
-                    if (!base_cand.at(worker.pos) &&
-                            (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
-                             find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
+                    if (!order.count(worker.id) &&
+                        !base_cand.at(worker.pos) &&
+                        (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
+                            find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
                     {
                         Unit stalker;
                         stalker.id = -1;
