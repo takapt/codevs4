@@ -88,10 +88,6 @@ aug:for(int k = 0; k < l; ++k)
     } while (i != f);
     }
     return matchL;
-    //   value_type opt = 0;
-    //   for (int i = 0; i < n; ++i) 
-    //     opt += c[i][matchL[i]]; // (i, matchL[i]) is a solution
-    //   return opt;
 }
 
 vector<vector<Pos>> clustering(const vector<Pos>& pos, const int num_cluster)
@@ -705,7 +701,8 @@ map<int, char> AI::solve(const InputResult& input)
 
         if (found)
         {
-            go = true;
+            if (!is_lila)
+                go = true;
 
             int num_on_villages = 0;
             for (auto& village : input.get_my({VILLAGE}))
@@ -910,11 +907,15 @@ map<int, char> AI::solve(const InputResult& input)
                         Unit best_worker;
                         for (auto& worker : remain_workers)
                         {
-                            int d = pos.dist(worker.pos);
-                            if (d <= SIGHT_RANGE[WORKER] && d < best_dist)
+                            if (find(all(right_scouter_ids), worker.id) == right_scouter_ids.end() &&
+                                find(all(down_scouter_ids), worker.id) == down_scouter_ids.end())
                             {
-                                best_dist = d;
-                                best_worker = worker;
+                                int d = pos.dist(worker.pos);
+                                if (d <= SIGHT_RANGE[WORKER] && d < best_dist)
+                                {
+                                    best_dist = d;
+                                    best_worker = worker;
+                                }
                             }
                         }
                         if (best_dist != inf)
@@ -1080,6 +1081,41 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
 
+
+            if (is_lila && remain_resources >= CREATE_COST[VILLAGE])
+            {
+                Board<bool> safe_scout_pos(false);
+                const int cx = enemy_castle.pos.x, cy = enemy_castle.pos.y;
+                for (auto& diff : RANGE_POS[enemy_castle.sight_range()])
+                {
+                    Pos p = enemy_castle.pos + diff;
+                    if (p.in_board())
+                    {
+                        if (p.x >= cx + 5 || p.y >= cy + 5)
+                            safe_scout_pos.at(p) = true;
+                    }
+                }
+                bool any_safe_scout_village = false;
+                for (auto& v : my_villages)
+                    any_safe_scout_village |= safe_scout_pos.at(v.pos);
+
+                if (!any_safe_scout_village)
+                {
+                    Unit creater;
+                    creater.id = -1;
+                    for (auto& worker : remain_workers)
+                    {
+                        if (safe_scout_pos.at(worker.pos))
+                            creater = worker;
+                    }
+                    if (creater.id != -1)
+                    {
+                        merge_remove(order, remain_workers, creater.id, CREATE_ORDER[VILLAGE]);
+                    }
+                }
+            }
+
+
             Board<bool> base_cand(false);
             bool found = false;
             for (int k = 5; k >= 0 && !found; --k)
@@ -1089,7 +1125,7 @@ map<int, char> AI::solve(const InputResult& input)
                     int ex = enemy_castle.pos.x;
                     int ey = enemy_castle.pos.y;
                     int d = enemy_castle.pos.dist(Pos(x, y));
-                    if (13 <= d && d <= 25 &&
+                    if (12 <= d && d <= 25 &&
                             x >= ex + k && y >= ey + k)
                     {
                         base_cand.at(x, y) = true;
@@ -1332,11 +1368,6 @@ map<int, char> AI::solve(const InputResult& input)
 //         move_for_resource(order, remain_workers);
 
         {
-//             Board<bool> mark(false);
-//             rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-//                 mark.at(x, y) = Pos(x, y).dist(Pos(0, 0)) <= 99 && !known.at(x, y);
-//             merge_remove(order, remain_workers, search_moves(remain_workers, mark));
-
             Board<int> pos_cost(-1);
             rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
             {
@@ -1384,7 +1415,7 @@ map<int, char> AI::solve(const InputResult& input)
 
                 if (is_lila)
                 {
-                    if ((in_sight && around_castle.size() <= 10 && my_warriors.size() >= 50) || my_warriors.size() >= around_castle.size() + 80)
+                    if ((in_sight && on_castle.size() <= 10 && my_warriors.size() >= 70) || my_warriors.size() >= around_castle.size() + 80)
                         go = true;
                     else if (!go)
                     {
