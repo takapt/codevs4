@@ -696,7 +696,7 @@ map<int, char> AI::solve(const InputResult& input)
     if (input.current_turn < 200)
     {
         bool found = false;
-        for (auto& u : enemy_units)
+        for (auto& u : enemy_warriors)
             found |= u.pos.dist(my_castle.pos) <= 10;
 
         if (found)
@@ -782,7 +782,7 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
 
-    if (!order.count(my_castle.id) && my_workers.size() < 15 && input.current_turn < 150 && enemy_castle.id == -1)
+    if (!order.count(my_castle.id) && my_workers.size() < 13 && input.current_turn < 150 && enemy_castle.id == -1)
     {
         if (remain_resources >= CREATE_COST[WORKER])
         {
