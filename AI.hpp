@@ -41,6 +41,9 @@ private:
     bool fast_attack;
 
     vector<int> warrior_scouter_ids;
+
+    map<Pos, int> num_workers_created_for_map;
+    vector<int> worker_ids_for_map;
 };
 
 #endif

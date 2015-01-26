@@ -54,4 +54,7 @@ template <typename T> void print(T a, int n, const string& split = " ") { for (i
 template <typename T> void print2d(T a, int w, int h, int width = -1, int br = 0) { for (int i = 0; i < h; ++i) { for (int j = 0; j < w; ++j) { if (width != -1) cerr.width(width); cerr << a[i][j] << ' '; } cerr << endl; } while (br--) cerr << endl; }
 
 template <typename T> void uniq(T& a) { sort(a.begin(), a.end()); a.erase(unique(a.begin(), a.end()), a.end()); }
+
+template <typename T, typename U> void upmin(T& a, const U& b) { a = min<T>(a, b); }
+template <typename T, typename U> void upmax(T& a, const U& b) { a = max<T>(a, b); }
 #endif
