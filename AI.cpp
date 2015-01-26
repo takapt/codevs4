@@ -1415,7 +1415,7 @@ map<int, char> AI::solve(const InputResult& input)
 
                 if (is_lila)
                 {
-                    if ((in_sight && on_castle.size() <= 10 && my_warriors.size() >= 70) || my_warriors.size() >= around_castle.size() + 80)
+                    if ((in_sight && on_castle.size() <= 10 && my_warriors.size() >= 70) || false&&my_warriors.size() >= around_castle.size() + 80)
                         go = true;
                     else if (!go)
                     {
@@ -1444,7 +1444,9 @@ map<int, char> AI::solve(const InputResult& input)
                     if (around_my_castle >= 3)
                         go = true;
 
-                    const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 90);
+                    // 10: 80 or 60(微妙にこっちのがいい。誤差レベル)
+                    // 30: 80?? or 90(90のが1勝おおかった)
+                    const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 80);
                     if (my_warriors.size() >= go_line)
                         go = true;
                     if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || my_warriors.size() >= go_line || go))
