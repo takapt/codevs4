@@ -584,16 +584,15 @@ void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, cons
             remain_workers.pop_back();
         }
 
-        vector<int> move_cost(4);
-        move_cost[DOWN] = move_cost[RIGHT] = 10;
-        move_cost[LEFT] = move_cost[UP] = 50;
         rep(i, down_scouters.size())
         {
-            const Unit& u = down_scouters[i];
+            vector<int> move_cost(4);
+            move_cost[DOWN] = 10;
+            move_cost[RIGHT] = 12;
+            move_cost[LEFT] = move_cost[UP] = 50;
 
-            //                     const Pos goal = Pos(99 - 40, 99) + Pos(40 / NUM_SCOUTERS * i, -40 / NUM_SCOUTERS * i);
+            const Unit& u = down_scouters[i];
             const Pos goal(90, 99 - 9 * i);
-            //                     const Pos goal(90, 99);
 
             if (u.pos == goal)
                 once_goal_scouter_ids.insert(u.id);
@@ -609,10 +608,13 @@ void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, cons
 
         rep(i, right_scouters.size())
         {
+            vector<int> move_cost(4);
+            move_cost[DOWN] = 12;
+            move_cost[RIGHT] = 10;
+            move_cost[LEFT] = move_cost[UP] = 50;
+
             const Unit& u = right_scouters[i];
-            //                     const Pos goal = Pos(99, 99 - 40) + Pos(-40 / NUM_SCOUTERS * i, 40 / NUM_SCOUTERS * i);
             const Pos goal(99 - 9 * i, 90);
-            //                     const Pos goal(99, 90);
 
             if (u.pos == goal)
                 once_goal_scouter_ids.insert(u.id);
