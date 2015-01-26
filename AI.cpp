@@ -782,7 +782,7 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
 
-    if (!order.count(my_castle.id) && my_workers.size() < 13 && input.current_turn < 150 && enemy_castle.id == -1)
+    if (!order.count(my_castle.id) && my_workers.size() < 15 && input.current_turn < 150 && enemy_castle.id == -1)
     {
         if (remain_resources >= CREATE_COST[WORKER])
         {
@@ -1125,7 +1125,18 @@ map<int, char> AI::solve(const InputResult& input)
                     int ex = enemy_castle.pos.x;
                     int ey = enemy_castle.pos.y;
                     int d = enemy_castle.pos.dist(Pos(x, y));
-                    if (12 <= d && d <= 25 &&
+                    int low, high;
+                    if (!is_lila)
+                    {
+                        low = 12;
+                        high = 25;
+                    }
+                    else
+                    {
+                        low = 11;
+                        high = 13;
+                    }
+                    if (low <= d && d <= high &&
                             x >= ex + k && y >= ey + k)
                     {
                         base_cand.at(x, y) = true;
@@ -1142,7 +1153,18 @@ map<int, char> AI::solve(const InputResult& input)
                         int ex = enemy_castle.pos.x;
                         int ey = enemy_castle.pos.y;
                         int d = enemy_castle.pos.dist(Pos(x, y));
-                        if (12 <= d && d <= 25 &&
+                        int low, high;
+                        if (!is_lila)
+                        {
+                            low = 12;
+                            high = 25;
+                        }
+                        else
+                        {
+                            low = 11;
+                            high = 13;
+                        }
+                        if (low <= d && d <= high &&
                                 (x >= ex + k|| y >= ey + k))
                         {
                             base_cand.at(x, y) = true;
@@ -1151,22 +1173,26 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                 }
             }
-            for (auto& u : enemy_villages)
+
+            if (!is_lila)
             {
-                for (auto& diff : RANGE_POS[u.sight_range()])
+                for (auto& u : enemy_villages)
                 {
-                    Pos p = u.pos + diff;
-                    if (p.in_board())
-                        base_cand.at(p) = false;
+                    for (auto& diff : RANGE_POS[u.sight_range()])
+                    {
+                        Pos p = u.pos + diff;
+                        if (p.in_board())
+                            base_cand.at(p) = false;
+                    }
                 }
-            }
-            for (auto& u : enemy_units)
-            {
-                for (auto& diff : RANGE_POS[u.sight_range()])
+                for (auto& u : enemy_units)
                 {
-                    Pos p = u.pos + diff;
-                    if (p.in_board())
-                        base_cand.at(p) = false;
+                    for (auto& diff : RANGE_POS[u.sight_range()])
+                    {
+                        Pos p = u.pos + diff;
+                        if (p.in_board())
+                            base_cand.at(p) = false;
+                    }
                 }
             }
 
