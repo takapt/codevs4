@@ -566,7 +566,7 @@ void AI::move_for_resource(map<int, char>& order, vector<Unit>& remain_workers)
     merge_remove(order, remain_workers, order_to_resource);
 }
 
-void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, const vector<Unit>& enemy_units)
+void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, const vector<Unit>& enemy_units, const Pos& my_castle_pos)
 {
     vector<Unit> workers_in_enemy_area;
     {
@@ -586,18 +586,22 @@ void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, cons
 
         rep(i, down_scouters.size())
         {
+            const Unit& u = down_scouters[i];
+
             vector<int> move_cost(4);
             move_cost[DOWN] = 10;
             move_cost[RIGHT] = 12;
             move_cost[LEFT] = move_cost[UP] = 50;
 
-            const Unit& u = down_scouters[i];
+            const int relay_x = 4 + (max(my_castle_pos.x - 4, 0) / 9) * 9 + 9 * i;
             const Pos goal(90, 99 - 9 * i);
 
             if (u.pos == goal)
                 once_goal_scouter_ids.insert(u.id);
 
-            if (!once_goal_scouter_ids.count(u.id))
+            if (u.pos.x < relay_x)
+                order[u.id] = to_order(RIGHT);
+            else if (!once_goal_scouter_ids.count(u.id))
             {
                 DijkstraResult res = dijkstra(u.pos, down_pass_cost_table(enemy_units), move_cost);
                 order[u.id] = to_order(res.find_dir(goal));
@@ -608,18 +612,22 @@ void AI::move_scouters(map<int, char>& order, vector<Unit>& remain_workers, cons
 
         rep(i, right_scouters.size())
         {
+            const Unit& u = right_scouters[i];
+
             vector<int> move_cost(4);
             move_cost[DOWN] = 12;
             move_cost[RIGHT] = 10;
             move_cost[LEFT] = move_cost[UP] = 50;
 
-            const Unit& u = right_scouters[i];
+            const int relay_y = 4 + (max(my_castle_pos.y - 4, 0) / 9) * 9 + 9 * i;
             const Pos goal(99 - 9 * i, 90);
 
             if (u.pos == goal)
                 once_goal_scouter_ids.insert(u.id);
 
-            if (!once_goal_scouter_ids.count(u.id))
+            if (u.pos.y < relay_y)
+                order[u.id] = to_order(DOWN);
+            else if (!once_goal_scouter_ids.count(u.id))
             {
                 DijkstraResult res = dijkstra(u.pos, right_pass_cost_table(enemy_units), move_cost);
                 order[u.id] = to_order(res.find_dir(goal));
@@ -784,7 +792,7 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
 
-    if (!order.count(my_castle.id) && my_workers.size() < 15 && input.current_turn < 150 && enemy_castle.id == -1)
+    if (!order.count(my_castle.id) && my_workers.size() < 12 && input.current_turn < 150 && enemy_castle.id == -1)
     {
         if (remain_resources >= CREATE_COST[WORKER])
         {
@@ -796,7 +804,6 @@ map<int, char> AI::solve(const InputResult& input)
     }
 
     {
-        // TODO: for_mapに追加
         vector<Unit> stay_workers;
         map<Pos, int> num_workers_for_resource;
         {
@@ -909,8 +916,8 @@ map<int, char> AI::solve(const InputResult& input)
                         Unit best_worker;
                         for (auto& worker : remain_workers)
                         {
-                            if (find(all(right_scouter_ids), worker.id) == right_scouter_ids.end() &&
-                                find(all(down_scouter_ids), worker.id) == down_scouter_ids.end())
+//                             if (find(all(right_scouter_ids), worker.id) == right_scouter_ids.end() &&
+//                                 find(all(down_scouter_ids), worker.id) == down_scouter_ids.end())
                             {
                                 int d = pos.dist(worker.pos);
                                 if (d <= SIGHT_RANGE[WORKER] && d < best_dist)
@@ -1050,7 +1057,7 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
 
-            move_scouters(order, remain_workers, enemy_units);
+            move_scouters(order, remain_workers, enemy_units, my_castle.pos);
 
             if (!my_warriors.empty())
             {

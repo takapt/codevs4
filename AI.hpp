@@ -29,7 +29,7 @@ private:
     vector<int> down_scouter_ids;
     vector<int> right_scouter_ids;
     set<int> once_goal_scouter_ids;
-    void move_scouters(map<int, char>& order, vector<Unit>& remain_workers, const vector<Unit>& enemy_units);
+    void move_scouters(map<int, char>& order, vector<Unit>& remain_workers, const vector<Unit>& enemy_units, const Pos& my_castle_pos);
 
     void move_for_resource(map<int, char>& order, vector<Unit>& remain_workers);
 
