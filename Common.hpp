@@ -57,4 +57,7 @@ template <typename T> void uniq(T& a) { sort(a.begin(), a.end()); a.erase(unique
 
 template <typename T, typename U> void upmin(T& a, const U& b) { a = min<T>(a, b); }
 template <typename T, typename U> void upmax(T& a, const U& b) { a = max<T>(a, b); }
+
+
+typedef pair<int, int> pint;
 #endif

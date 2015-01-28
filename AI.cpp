@@ -290,7 +290,7 @@ map<int, char> search_moves_by_min_assignment(const vector<Unit>& units, const B
 }
 
 
-const int DIJKSTRA_INF = ten(8);
+const int DIJKSTRA_INF = ten(7);
 struct DijkstraResult
 {
     Pos start;
@@ -396,6 +396,7 @@ AI::AI()
     visited(false),
     go(false),
     is_lila(false),
+    is_schwarz(false),
     fast_attack(false)
 {
     enemy_castle.id = -1;
@@ -691,6 +692,52 @@ map<int, char> AI::solve(const InputResult& input)
         num_workers_created_for_map.clear();
     }
 
+    {
+        set<pint> lost;
+        for (auto& it : stalker_log)
+            lost.insert(it.first);
+        for (auto& w : my_workers)
+        {
+            for (auto& e : enemy_warriors)
+            {
+                pint key(w.id, e.id);
+                if (w.pos.dist(e.pos) <= e.sight_range())
+                {
+                    stalker_log[key].push_back(make_pair(w, e));
+                    lost.erase(key);
+                }
+            }
+        }
+        for (auto& key : lost)
+            stalker_log.erase(key);
+
+
+        if (input.current_turn <= 150)
+        {
+            set<int> stalked_ids;
+            for (auto& it : stalker_log)
+            {
+                auto& log = it.second;
+                assert(!log.empty());
+
+                vector<int> dir_freq(4);
+                rep(i, sz(log) - 1)
+                    if (log[i].first.pos != log[i + 1].first.pos)
+                        ++dir_freq[decide_dir(log[i].first.pos, log[i + 1].first.pos)];
+
+                if (log[0].second.type == ASSASSIN &&
+                    max(dir_freq[RIGHT], dir_freq[DOWN]) >= 6
+                    )
+                {
+                    stalked_ids.insert(log[0].first.id);
+                }
+            }
+            if (stalked_ids.size() >= 3)
+            {
+                is_schwarz = true;
+            }
+        }
+    }
 
     int remain_resources = input.resources;
     auto remain_workers = input.get_my({WORKER});
@@ -843,86 +890,89 @@ map<int, char> AI::solve(const InputResult& input)
         }
 
 
-        if (input.current_turn <= 130)
+        if (!go)
         {
-            vector<Pos> added_villages_pos;
-            for (Pos& pos : resource_pos)
+            if (input.current_turn <= 130)
             {
-                if (num_workers_for_resource[pos] < MAX_RESOURCE_GAIN)
+                vector<Pos> added_villages_pos;
+                for (Pos& pos : resource_pos)
                 {
-                    int min_dist = my_castle.pos.dist(pos);
-                    for (auto& v : my_villages)
-                        upmin(min_dist, v.pos.dist(pos));
-                    for (auto& p : added_villages_pos)
-                        upmin(min_dist, p.dist(pos));
-
-                    if (min_dist > 20)
+                    if (num_workers_for_resource[pos] < MAX_RESOURCE_GAIN)
                     {
-                        const int inf = 1919810;
-                        int best_dist = inf;
-                        Unit best_worker;
-                        for (auto& worker : remain_workers)
+                        int min_dist = my_castle.pos.dist(pos);
+                        for (auto& v : my_villages)
+                            upmin(min_dist, v.pos.dist(pos));
+                        for (auto& p : added_villages_pos)
+                            upmin(min_dist, p.dist(pos));
+
+                        if (min_dist > 20)
                         {
-//                             if (find(all(right_scouter_ids), worker.id) == right_scouter_ids.end() &&
-//                                 find(all(down_scouter_ids), worker.id) == down_scouter_ids.end())
+                            const int inf = 1919810;
+                            int best_dist = inf;
+                            Unit best_worker;
+                            for (auto& worker : remain_workers)
                             {
-                                int d = pos.dist(worker.pos);
-                                if (d <= SIGHT_RANGE[WORKER] && d < best_dist)
+                                //                             if (find(all(right_scouter_ids), worker.id) == right_scouter_ids.end() &&
+                                //                                 find(all(down_scouter_ids), worker.id) == down_scouter_ids.end())
                                 {
-                                    best_dist = d;
-                                    best_worker = worker;
+                                    int d = pos.dist(worker.pos);
+                                    if (d <= SIGHT_RANGE[WORKER] && d < best_dist)
+                                    {
+                                        best_dist = d;
+                                        best_worker = worker;
+                                    }
                                 }
                             }
-                        }
-                        if (best_dist != inf)
-                        {
-                            if (remain_resources >= CREATE_COST[VILLAGE])
+                            if (best_dist != inf)
                             {
-                                merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[VILLAGE]);
-                                remain_resources -= CREATE_COST[VILLAGE];
-                                added_villages_pos.push_back(best_worker.pos);
-                            }
-                            else
-                            {
-                                // 貯めるため
-                                remain_resources -= CREATE_COST[VILLAGE];
+                                if (remain_resources >= CREATE_COST[VILLAGE])
+                                {
+                                    merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[VILLAGE]);
+                                    remain_resources -= CREATE_COST[VILLAGE];
+                                    added_villages_pos.push_back(best_worker.pos);
+                                }
+                                else
+                                {
+                                    // 貯めるため
+                                    remain_resources -= CREATE_COST[VILLAGE];
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        if (input.current_turn <= 140)
-        {
-            for (Pos& pos : resource_pos)
+            if (input.current_turn <= 140)
             {
-                if (remain_resources >= CREATE_COST[WORKER] && num_workers_for_resource[pos] < MAX_RESOURCE_GAIN)
+                for (Pos& pos : resource_pos)
                 {
-                    const int inf = 1919810;
-                    int best_dist = inf;
-                    Unit best_creater;
-                    best_creater.id = -1;
-                    if (!order.count(my_castle.id) && pos.dist(my_castle.pos) <= 20)
+                    if (remain_resources >= CREATE_COST[WORKER] && num_workers_for_resource[pos] < MAX_RESOURCE_GAIN)
                     {
-                        best_creater = my_castle;
-                        best_dist = pos.dist(my_castle.pos);
-                    }
-
-                    for (auto& v : my_villages)
-                    {
-                        int d = pos.dist(v.pos);
-                        if (!order.count(v.id) && d <= 20 && d < best_dist)
+                        const int inf = 1919810;
+                        int best_dist = inf;
+                        Unit best_creater;
+                        best_creater.id = -1;
+                        if (!order.count(my_castle.id) && pos.dist(my_castle.pos) <= 20)
                         {
-                            best_dist = d;
-                            best_creater = v;
+                            best_creater = my_castle;
+                            best_dist = pos.dist(my_castle.pos);
                         }
-                    }
 
-                    if (best_creater.id != -1)
-                    {
-                        order[best_creater.id] = CREATE_ORDER[WORKER];
-                        remain_resources -= CREATE_COST[WORKER];
+                        for (auto& v : my_villages)
+                        {
+                            int d = pos.dist(v.pos);
+                            if (!order.count(v.id) && d <= 20 && d < best_dist)
+                            {
+                                best_dist = d;
+                                best_creater = v;
+                            }
+                        }
+
+                        if (best_creater.id != -1)
+                        {
+                            order[best_creater.id] = CREATE_ORDER[WORKER];
+                            remain_resources -= CREATE_COST[WORKER];
+                        }
                     }
                 }
             }
@@ -967,7 +1017,7 @@ map<int, char> AI::solve(const InputResult& input)
 
         const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
         vector<double> ratio;
-        if (in_sight && around_castle.size() == 0)
+        if (in_sight && around_castle.size() == 0 || go)
             ratio = {1, 0, 0};
         else
             ratio = {5, 1, 5};
@@ -1039,14 +1089,14 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                 }
 
-                if (stalkers - 1 >= (int)scouters.size() && my_bases.size() < 2 && scouters.size() <= 3 && remain_resources >= CREATE_COST[BASE])
+                if (is_schwarz || (stalkers - 1 >= (int)scouters.size() && my_bases.size() < 2 && scouters.size() <= 3 && remain_resources >= CREATE_COST[BASE]))
                 {
                     int best_dist = 810;
                     Unit best_worker;
                     for (auto& worker : remain_workers)
                     {
                         int d = worker.pos.dist(Pos(99, 99));
-                        if (d < best_dist)
+                        if (d <= 40 && d < best_dist)
                         {
                             best_dist = d;
                             best_worker = worker;
@@ -1140,7 +1190,7 @@ map<int, char> AI::solve(const InputResult& input)
                     int low, high;
                     if (!is_lila)
                     {
-                        low = 12;
+                        low = 11;
                         high = 25;
                     }
                     else
@@ -1168,7 +1218,7 @@ map<int, char> AI::solve(const InputResult& input)
                         int low, high;
                         if (!is_lila)
                         {
-                            low = 12;
+                            low = 11;
                             high = 25;
                         }
                         else
@@ -1293,7 +1343,7 @@ map<int, char> AI::solve(const InputResult& input)
                     }
 
 
-                    if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos)) && score < best_score)
+                    if (((all_stalked && scouters.size() <= 2 && enemy_castle.pos.dist(worker.pos) > 11) || base_cand.at(worker.pos) || is_schwarz) && score < best_score)
                     {
                         best_score = score;
                         best_worker = worker;
@@ -1334,9 +1384,36 @@ map<int, char> AI::solve(const InputResult& input)
                 }
 
                 Board<int> cost(0);
-                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-                    if (!base_cand.at(x, y))
-                        cost.at(x, y) = 100;
+                for (auto& diff : RANGE_POS[enemy_castle.sight_range()])
+                {
+                    Pos p = enemy_castle.pos + diff;
+                    if (p.in_board())
+                        cost.at(p) += 100000;
+                }
+                for (auto& u : enemy_villages)
+                {
+                    for (auto& diff : RANGE_POS[u.sight_range()])
+                    {
+                        Pos p = u.pos + diff;
+                        if (p.in_board())
+                            cost.at(p) += 100000;
+                    }
+                }
+                for (auto& u : enemy_units)
+                {
+                    for (auto& diff : RANGE_POS[u.sight_range()])
+                    {
+                        Pos p = u.pos + diff;
+                        if (p.in_board())
+                            cost.at(p) += 100000;
+                    }
+                }
+                for (auto& diff : RANGE_POS[13])
+                {
+                    Pos p = enemy_castle.pos + diff;
+                    if (p.in_board())
+                        cost.at(p) += 5;
+                }
                 for (auto& worker : remain_workers)
                 {
                     if (!base_cand.at(worker.pos) &&
@@ -1371,7 +1448,7 @@ map<int, char> AI::solve(const InputResult& input)
                                 }
                             }
                         }
-                        if (best_cost != DIJKSTRA_INF)
+                        if (best_cost != DIJKSTRA_INF && worker.pos != best_goal)
                         {
                             base_pos_order[worker.id] = to_order(res.find_dir(best_goal));
                         }
@@ -1414,6 +1491,7 @@ map<int, char> AI::solve(const InputResult& input)
         }
     }
 
+
     {
         if (enemy_castle.id != -1)
         {
@@ -1430,8 +1508,10 @@ map<int, char> AI::solve(const InputResult& input)
                         around_castle.push_back(unit);
                 }
             }
-            if (around_castle.size() >= 15)
+            if (on_castle.size() >= 8)
                 is_lila = true;
+            if (is_schwarz)
+                is_lila = false;
 
             map<int, char> warrior_order;
 
@@ -1485,6 +1565,10 @@ map<int, char> AI::solve(const InputResult& input)
                     const int go_line = (in_sight && on_castle.size() == 0 ? 1 : 80);
                     if (my_warriors.size() >= go_line)
                         go = true;
+
+
+                    if (is_schwarz && (my_warriors.size() >= 60 || false&&input.current_turn >= 250))
+                        go = true;
                     if (pos.dist(enemy_castle.pos) > 2 && (!base_pos.count(pos) || my_warriors.size() >= go_line || go))
                     {
                         for (auto& warrior : warriors)
@@ -1494,6 +1578,56 @@ map<int, char> AI::solve(const InputResult& input)
             }
 
             merge_remove(order, remain_warriors, warrior_order);
+        }
+    }
+
+    // grun only
+    if ((!is_lila && !is_schwarz) && !my_bases.empty() && !go)
+    {
+        vector<Unit> stalkers;
+        for (auto& u : enemy_units)
+        {
+            if (u.type != CASTLE && u.type != BASE && u.pos.dist(my_bases[0].pos) <= u.sight_range())
+                stalkers.push_back(u);
+        }
+
+        set<int> used_ids;
+        for (auto& it : stalker_attacker_ids)
+        {
+            for (auto& id : it.second)
+                used_ids.insert(id);
+        }
+
+        for (auto& stalker : stalkers)
+        {
+            vector<Unit> attackers;
+            auto& attacker_ids = stalker_attacker_ids[stalker.id];
+            for (auto& w : my_warriors)
+            {
+                if (attacker_ids.size() < 3 && !used_ids.count(w.id))
+                {
+                    used_ids.insert(w.id);
+                    attacker_ids.insert(w.id);
+                }
+
+                if (attacker_ids.count(w.id))
+                    attackers.push_back(w);
+            }
+
+            for (auto& w : attackers)
+            {
+                if (w.pos != stalker.pos)
+                    order[w.id] = to_order(decide_dir(w.pos, stalker.pos));
+            }
+        }
+
+        for (auto& w : my_warriors)
+        {
+            if (used_ids.count(w.id) && !order.count(w.id))
+            {
+                if (w.pos != my_bases[0].pos)
+                    order[w.id] = to_order(rev_dir(decide_dir(w.pos, my_bases[0].pos)));
+            }
         }
     }
 

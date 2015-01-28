@@ -37,7 +37,7 @@ const vector<Pos> NEXT_POS = {
 };
 
 vector<Pos> get_range_pos(int range);
-const vector<Pos> RANGE_POS[11] = {
+const vector<Pos> RANGE_POS[18] = {
     get_range_pos(0),
     get_range_pos(1),
     get_range_pos(2),
@@ -49,6 +49,13 @@ const vector<Pos> RANGE_POS[11] = {
     get_range_pos(8),
     get_range_pos(9),
     get_range_pos(10),
+    get_range_pos(11),
+    get_range_pos(12),
+    get_range_pos(13),
+    get_range_pos(14),
+    get_range_pos(15),
+    get_range_pos(16),
+    get_range_pos(17),
 };
 
 #endif
