@@ -733,7 +733,10 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
             if (stalked_ids.size() >= 3)
+            {
                 is_schwarz = true;
+                cerr << "stage: " << input.current_stage_no << " " << input.current_turn << " " << "schwarz" << endl;
+            }
         }
     }
 
@@ -1001,53 +1004,6 @@ map<int, char> AI::solve(const InputResult& input)
     }
 
 
-    {
-        const bool in_sight = input.get_enemy({CASTLE}).size() > 0;
-        vector<Unit> on_castle;
-        vector<Unit> around_castle;
-        for (auto& unit : enemy_units)
-        {
-            if (unit.type != CASTLE && unit.type != WORKER)
-            {
-                if (unit.pos == enemy_castle.pos)
-                    on_castle.push_back(unit);
-                if (unit.pos.dist(enemy_castle.pos) <= 2)
-                    around_castle.push_back(unit);
-            }
-        }
-
-        const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
-        vector<double> ratio;
-        if (in_sight && around_castle.size() == 0 || go)
-            ratio = {1, 0, 0};
-        else
-            ratio = {5, 1, 5};
-        for (auto& base : my_bases)
-        {
-            vector<bool> to_make(3, false);
-            if (!my_warriors.empty())
-            {
-                rep(i, 3)
-                {
-                    double current_ratio = (double)input.get_my({warrior_types[i]}).size() / my_warriors.size();
-                    to_make[i] = current_ratio <= ratio[i] / accumulate(all(ratio), 0.0);
-                }
-            }
-            else
-                to_make = vector<bool>(3, true);
-
-            rep(i, 3)
-            {
-                UnitType type = warrior_types[i];
-                if (to_make[i] && remain_resources >= CREATE_COST[type])
-                {
-                    order[base.id] = CREATE_ORDER[type];
-                    remain_resources -= CREATE_COST[type];
-                    break;
-                }
-            }
-        }
-    }
 
 
     {
@@ -1144,7 +1100,6 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
 
-
             if (is_lila)
             {
                 Board<bool> safe_scout_pos(false);
@@ -1163,70 +1118,83 @@ map<int, char> AI::solve(const InputResult& input)
                 for (auto& v : my_villages)
                     any_safe_scout_village |= safe_scout_pos.at(v.pos);
 
-                if (remain_resources >= CREATE_COST[VILLAGE] && !any_safe_scout_village)
+
+                if (!any_safe_scout_village)
                 {
-                    Unit creater;
-                    creater.id = -1;
-                    for (auto& worker : remain_workers)
+                    if (remain_resources >= CREATE_COST[VILLAGE])
                     {
-                        if (safe_scout_pos.at(worker.pos))
-                            creater = worker;
-                    }
-                    if (creater.id != -1)
-                    {
-                        merge_remove(order, remain_workers, creater.id, CREATE_ORDER[VILLAGE]);
-                        remain_resources -= CREATE_COST[VILLAGE];
-                    }
-                }
-
-                if (!any_safe_scout_village && my_bases.size() >= 2)
-                {
-                    map<int, char> base_pos_order;
-
-                    vector<Unit> scouters;
-                    for (auto& w : remain_workers)
-                    {
-                        if (find(all(right_scouter_ids), w.id) != right_scouter_ids.end() ||
-                                find(all(down_scouter_ids), w.id) != down_scouter_ids.end())
-                            scouters.push_back(w);
-                    }
-
-                    Board<int> cost(0);
-                    for (auto& diff : RANGE_POS[enemy_castle.sight_range()])
-                    {
-                        Pos p = enemy_castle.pos + diff;
-                        if (p.in_board())
-                            cost.at(p) += 100000;
-                    }
-                    for (auto& worker : remain_workers)
-                    {
-                        if (!safe_scout_pos.at(worker.pos) &&
-                                (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
-                                 find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
+                        Unit creater;
+                        creater.id = -1;
+                        for (auto& worker : remain_workers)
                         {
-                            DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
-
-                            int best_cost = DIJKSTRA_INF;
-                            Pos best_goal;
-                            rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
-                            {
-                                if (safe_scout_pos.at(x, y))
-                                {
-                                    int c = res.cost.at(x, y);
-                                    if (c < best_cost)
-                                    {
-                                        best_cost = c;
-                                        best_goal = Pos(x, y);
-                                    }
-                                }
-                            }
-                            if (best_cost != DIJKSTRA_INF && worker.pos != best_goal)
-                            {
-                                base_pos_order[worker.id] = to_order(res.find_dir(best_goal));
-                            }
+                            if (safe_scout_pos.at(worker.pos))
+                                creater = worker;
+                        }
+                        if (creater.id != -1)
+                        {
+                            merge_remove(order, remain_workers, creater.id, CREATE_ORDER[VILLAGE]);
+                            remain_resources -= CREATE_COST[VILLAGE];
+                            any_safe_scout_village = true;
                         }
                     }
-                    merge_remove(order, remain_workers, base_pos_order);
+                    if (my_bases.size() >= 2)
+                    {
+                        if (!any_safe_scout_village)
+                        {
+                            // 貯めるため
+                            remain_resources -= CREATE_COST[VILLAGE];
+                            if (input.current_stage_no == 14)
+                            {
+                                    if (input.current_stage_no == 7)
+                                        fprintf(stderr, "%3d: %d\n", input.current_turn, remain_resources);
+                            }
+                        }
+
+                        map<int, char> base_pos_order;
+
+                        vector<Unit> scouters;
+                        for (auto& w : remain_workers)
+                        {
+                            if (find(all(right_scouter_ids), w.id) != right_scouter_ids.end() ||
+                                    find(all(down_scouter_ids), w.id) != down_scouter_ids.end())
+                                scouters.push_back(w);
+                        }
+
+                        Board<int> cost(0);
+                        for (auto& diff : RANGE_POS[enemy_castle.sight_range()])
+                        {
+                            Pos p = enemy_castle.pos + diff;
+                            if (p.in_board())
+                                cost.at(p) += 100000;
+                        }
+                        for (auto& worker : scouters)
+                        {
+                            if (!safe_scout_pos.at(worker.pos))
+                            {
+                                DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
+
+                                int best_cost = DIJKSTRA_INF;
+                                Pos best_goal;
+                                rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                                {
+                                    if (safe_scout_pos.at(x, y))
+                                    {
+                                        int c = res.cost.at(x, y);
+                                        if (c < best_cost)
+                                        {
+                                            best_cost = c;
+                                            best_goal = Pos(x, y);
+                                        }
+                                    }
+                                }
+                                if (best_cost != DIJKSTRA_INF && worker.pos != best_goal)
+                                {
+                                    base_pos_order[worker.id] = to_order(res.find_dir(best_goal));
+                                }
+                            }
+                        }
+                        merge_remove(order, remain_workers, base_pos_order);
+                    }
                 }
             }
 
@@ -1541,6 +1509,55 @@ map<int, char> AI::solve(const InputResult& input)
                     pos_cost.at(x, y) = min(x, y);
             }
             merge_remove(order, remain_workers, search_moves_by_min_assignment(remain_workers, pos_cost));
+        }
+    }
+
+
+    {
+        const bool in_sight = input.get_enemy({CASTLE}).size() > 0;
+        vector<Unit> on_castle;
+        vector<Unit> around_castle;
+        for (auto& unit : enemy_units)
+        {
+            if (unit.type != CASTLE && unit.type != WORKER)
+            {
+                if (unit.pos == enemy_castle.pos)
+                    on_castle.push_back(unit);
+                if (unit.pos.dist(enemy_castle.pos) <= 2)
+                    around_castle.push_back(unit);
+            }
+        }
+
+        const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
+        vector<double> ratio;
+        if (in_sight && around_castle.size() == 0 || go)
+            ratio = {1, 0, 0};
+        else
+            ratio = {5, 1, 5};
+        for (auto& base : my_bases)
+        {
+            vector<bool> to_make(3, false);
+            if (!my_warriors.empty())
+            {
+                rep(i, 3)
+                {
+                    double current_ratio = (double)input.get_my({warrior_types[i]}).size() / my_warriors.size();
+                    to_make[i] = current_ratio <= ratio[i] / accumulate(all(ratio), 0.0);
+                }
+            }
+            else
+                to_make = vector<bool>(3, true);
+
+            rep(i, 3)
+            {
+                UnitType type = warrior_types[i];
+                if (to_make[i] && remain_resources >= CREATE_COST[type])
+                {
+                    order[base.id] = CREATE_ORDER[type];
+                    remain_resources -= CREATE_COST[type];
+                    break;
+                }
+            }
         }
     }
 
