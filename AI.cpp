@@ -208,10 +208,6 @@ map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& mark, 
     {
         for (auto& p : near_mark_pos)
             clusters.push_back({p});
-
-//         // dummy cluster
-//         while (clusters.size() < units.size())
-//             clusters.push_back({dummy_pos}); 
     }
 
     vector<vector<int>> cost(units.size(), vector<int>(units.size()));
@@ -253,7 +249,6 @@ map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& mark, 
 }
 
 
-// TODO: markをcostテーブルかなんかにする
 map<int, char> search_moves_by_min_assignment(const vector<Unit>& units, const Board<int>& pos_cost)
 {
     vector<Pos> targets;
@@ -894,7 +889,6 @@ map<int, char> AI::solve(const InputResult& input)
 
         if (input.current_turn <= 130)
         {
-//             fprintf(stderr, "%4d: %4d, %2d\n", input.current_turn, remain_resources, (int)resource_pos.size());
             vector<Pos> added_villages_pos;
             for (Pos& pos : resource_pos)
             {
@@ -1399,8 +1393,6 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
         }
-
-//         move_for_resource(order, remain_workers);
 
         {
             Board<int> pos_cost(-1);
