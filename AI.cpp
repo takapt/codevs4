@@ -733,11 +733,12 @@ map<int, char> AI::solve(const InputResult& input)
                 }
             }
             if (stalked_ids.size() >= 3)
-            {
                 is_schwarz = true;
-            }
         }
     }
+
+    if (is_lila || is_schwarz)
+        fast_attack = false;
 
     int remain_resources = input.resources;
     auto remain_workers = input.get_my({WORKER});
@@ -1144,7 +1145,7 @@ map<int, char> AI::solve(const InputResult& input)
             }
 
 
-            if (is_lila && remain_resources >= CREATE_COST[VILLAGE])
+            if (is_lila)
             {
                 Board<bool> safe_scout_pos(false);
                 const int cx = enemy_castle.pos.x, cy = enemy_castle.pos.y;
@@ -1157,11 +1158,12 @@ map<int, char> AI::solve(const InputResult& input)
                             safe_scout_pos.at(p) = true;
                     }
                 }
+
                 bool any_safe_scout_village = false;
                 for (auto& v : my_villages)
                     any_safe_scout_village |= safe_scout_pos.at(v.pos);
 
-                if (!any_safe_scout_village)
+                if (remain_resources >= CREATE_COST[VILLAGE] && !any_safe_scout_village)
                 {
                     Unit creater;
                     creater.id = -1;
@@ -1173,7 +1175,58 @@ map<int, char> AI::solve(const InputResult& input)
                     if (creater.id != -1)
                     {
                         merge_remove(order, remain_workers, creater.id, CREATE_ORDER[VILLAGE]);
+                        remain_resources -= CREATE_COST[VILLAGE];
                     }
+                }
+
+                if (!any_safe_scout_village && my_bases.size() >= 2)
+                {
+                    map<int, char> base_pos_order;
+
+                    vector<Unit> scouters;
+                    for (auto& w : remain_workers)
+                    {
+                        if (find(all(right_scouter_ids), w.id) != right_scouter_ids.end() ||
+                                find(all(down_scouter_ids), w.id) != down_scouter_ids.end())
+                            scouters.push_back(w);
+                    }
+
+                    Board<int> cost(0);
+                    for (auto& diff : RANGE_POS[enemy_castle.sight_range()])
+                    {
+                        Pos p = enemy_castle.pos + diff;
+                        if (p.in_board())
+                            cost.at(p) += 100000;
+                    }
+                    for (auto& worker : remain_workers)
+                    {
+                        if (!safe_scout_pos.at(worker.pos) &&
+                                (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
+                                 find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
+                        {
+                            DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
+
+                            int best_cost = DIJKSTRA_INF;
+                            Pos best_goal;
+                            rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
+                            {
+                                if (safe_scout_pos.at(x, y))
+                                {
+                                    int c = res.cost.at(x, y);
+                                    if (c < best_cost)
+                                    {
+                                        best_cost = c;
+                                        best_goal = Pos(x, y);
+                                    }
+                                }
+                            }
+                            if (best_cost != DIJKSTRA_INF && worker.pos != best_goal)
+                            {
+                                base_pos_order[worker.id] = to_order(res.find_dir(best_goal));
+                            }
+                        }
+                    }
+                    merge_remove(order, remain_workers, base_pos_order);
                 }
             }
 
