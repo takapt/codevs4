@@ -1018,6 +1018,7 @@ map<int, char> AI::solve(const InputResult& input)
                     if (worker.pos.dist(Pos(99, 99)) <= 40 + 10 && prev_unit.count(worker.id) && worker.hp < prev_unit[worker.id].hp - predict_damage[worker.id])
                     {
                         merge_remove(order, remain_workers, worker.id, CREATE_ORDER[VILLAGE]);
+                        remain_resources -= CREATE_COST[VILLAGE];
                         set_village = true;
                         break;
                     }
@@ -1061,8 +1062,8 @@ map<int, char> AI::solve(const InputResult& input)
                     }
                     if (best_dist != 810)
                     {
-                        remain_resources -= CREATE_COST[BASE];
                         merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
+                        remain_resources -= CREATE_COST[BASE];
                     }
                 }
             }
@@ -1372,8 +1373,8 @@ map<int, char> AI::solve(const InputResult& input)
                 }
                 if (best_score != 1919810)
                 {
-                    remain_resources -= CREATE_COST[BASE];
                     merge_remove(order, remain_workers, best_worker.id, CREATE_ORDER[BASE]);
+                    remain_resources -= CREATE_COST[BASE];
                 }
             }
 
