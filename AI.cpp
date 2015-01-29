@@ -182,7 +182,8 @@ vector<Pos> list_near_pos(const Board<bool>& start, const Board<bool>& mark, con
 
 Dir decide_dir(const Pos& cur, const Pos& to)
 {
-    assert(cur != to);
+    if (cur == to)
+        return Dir(rand() % 4);
 
     Dir dir;
     if (abs(to.x - cur.x) > abs(to.y - cur.y))
@@ -1531,8 +1532,8 @@ map<int, char> AI::solve(const InputResult& input)
 
         const UnitType warrior_types[] = { KNIGHT, FIGHTER, ASSASSIN };
         vector<double> ratio;
-        if (in_sight && around_castle.size() == 0 || go)
-            ratio = {1, 0, 0};
+        if (in_sight && around_castle.size() == 0 || go || fast_attack)
+            ratio = {5, 1, 1};
         else
             ratio = {5, 1, 5};
         for (auto& base : my_bases)
