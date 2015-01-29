@@ -1676,7 +1676,7 @@ map<int, char> AI::solve(const InputResult& input)
             auto& attacker_ids = stalker_attacker_ids[stalker.id];
             for (auto& w : my_warriors)
             {
-                if (attacker_ids.size() < 3 && !used_ids.count(w.id))
+                if (attacker_ids.size() < 2 && !used_ids.count(w.id))
                 {
                     used_ids.insert(w.id);
                     attacker_ids.insert(w.id);
