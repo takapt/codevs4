@@ -195,7 +195,6 @@ Dir decide_dir(const Pos& cur, const Pos& to)
 
 map<int, char> search_moves(const vector<Unit>& units, const Board<bool>& mark, const int max_dist = 200, const Pos remain_target = Pos(99, 99))
 {
-//     const vector<Pos> near_mark_pos = list_near_pos(start, mark, max_dist);
     vector<Pos> near_mark_pos;
     rep(y, BOARD_SIZE) rep(x, BOARD_SIZE)
         if (mark.at(x, y))
@@ -917,8 +916,6 @@ map<int, char> AI::solve(const InputResult& input)
                             Unit best_worker;
                             for (auto& worker : remain_workers)
                             {
-                                //                             if (find(all(right_scouter_ids), worker.id) == right_scouter_ids.end() &&
-                                //                                 find(all(down_scouter_ids), worker.id) == down_scouter_ids.end())
                                 {
                                     int d = pos.dist(worker.pos);
                                     if (d <= SIGHT_RANGE[WORKER] && d < best_dist)
@@ -1443,18 +1440,6 @@ map<int, char> AI::solve(const InputResult& input)
                             (find(all(right_scouter_ids), worker.id) != right_scouter_ids.end() ||
                              find(all(down_scouter_ids), worker.id) != down_scouter_ids.end()))
                     {
-                        // TODO: 過去のストーカー情報を持って、3ターン連続でストークならとかにする
-//                         Unit stalker;
-//                         stalker.id = -1;
-//                         for (auto& w : enemy_warriors)
-//                             if (w.pos.dist(worker.pos) <= w.sight_range())
-//                                 stalker = w;
-//                         if (stalker.id != -1 && worker.pos != stalker.pos)
-//                         {
-//                             merge_remove(order, remain_workers, worker.id, to_order(decide_dir(worker.pos, stalker.pos)));
-//                             continue;
-//                         }
-
                         DijkstraResult res = dijkstra(worker.pos, cost, vector<int>(4, 10));
 
                         int best_cost = DIJKSTRA_INF;
@@ -1603,7 +1588,7 @@ map<int, char> AI::solve(const InputResult& input)
 
                 if (is_lila)
                 {
-                    if ((in_sight && on_castle.size() <= 10 && my_warriors.size() >= 70) || false&&my_warriors.size() >= around_castle.size() + 80)
+                    if (in_sight && on_castle.size() <= 10 && my_warriors.size() >= 70)
                         go = true;
                     else if (!go)
                     {
@@ -1676,7 +1661,7 @@ map<int, char> AI::solve(const InputResult& input)
             auto& attacker_ids = stalker_attacker_ids[stalker.id];
             for (auto& w : my_warriors)
             {
-                if (attacker_ids.size() < 2 && !used_ids.count(w.id))
+                if (attacker_ids.size() < 3 && !used_ids.count(w.id))
                 {
                     used_ids.insert(w.id);
                     attacker_ids.insert(w.id);
