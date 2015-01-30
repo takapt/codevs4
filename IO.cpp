@@ -1,6 +1,25 @@
 #include "IO.hpp"
 
 
+Pos reverse(const Pos& pos)
+{
+    return Pos(99 - pos.x, 99 - pos.y);
+}
+
+bool InputResult::is_2p() const
+{
+    return get_my({CASTLE})[0].pos.dist(Pos(0, 0)) >= 50;
+}
+void InputResult::change_dir()
+{
+    for (auto& u : my_units)
+        u.pos = reverse(u.pos);
+    for (auto& u : enemy_units)
+        u.pos = reverse(u.pos);
+    for (auto& p : resource_pos_in_sight)
+        p = reverse(p);
+}
+
 Unit input_unit()
 {
     Unit unit;
@@ -47,11 +66,20 @@ InputResult input()
     return result;
 }
 
-void output(const map<int, char>& order)
+void output(const map<int, char>& order, bool change_dir)
 {
     cout << order.size() << endl;
     for (auto& it : order)
-        cout << it.first << " " << it.second << endl;
+    {
+        int id = it.first;
+        char ord = it.second;
+
+        const char* sdir = "RULD";
+        const char* t = strchr(sdir, ord);
+        if (change_dir && t)
+            ord = sdir[(t - sdir + 2) % 4];
+        cout << id << " " << ord << endl;
+    }
     cout.flush();
 }
 

@@ -18,9 +18,12 @@ struct InputResult
 
     vector<Unit> get_my(const vector<UnitType>& unit_types) const;
     vector<Unit> get_enemy(const vector<UnitType>& unit_types) const;
+
+    bool is_2p() const;
+    void change_dir();
 };
 
 InputResult input();
-void output(const map<int, char>& order);
+void output(const map<int, char>& order, bool change_dir);
 
 #endif
