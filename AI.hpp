@@ -38,8 +38,7 @@ private:
 
     map<int, Unit> prev_unit;
 
-    bool is_lila;
-    bool is_schwarz;
+    bool is_stalker;
     bool fast_attack;
 
     vector<int> warrior_scouter_ids;
