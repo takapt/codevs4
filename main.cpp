@@ -5,7 +5,7 @@
 
 int main()
 {
-    cout << "UNKO" << endl;
+    cout << "UNK114514" << endl;
     cout.flush();
 
     AI ai;
